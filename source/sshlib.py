@@ -152,7 +152,7 @@ def ssh_keygen():
 
 	key_path = find_ssh_key(make=1)
 	ssh_dir = os.path.split(key_path)[0]
-	ssh_dirlist = os.listdir(key_path)
+	ssh_dirlist = os.listdir(ssh_dir)
 	if 'id_rsa' not in ssh_dirlist and 'id_rsa.pub' not in ssh_dirlist:
 		key = Crypto.PublicKey.RSA.generate(2048)
 		fd = open(os.path.join(ssh_dir,'id_rsa'),'wb')
