@@ -15,8 +15,8 @@ wrds_domain = 'wrds.wharton.upenn.edu'
 
 user_info = {}
 this_file = os.path.abspath(__file__)
-user_path = this_file.split('source')[0]
-user_info_filename = os.path.join(user_path,'user_info.txt')
+user_path = os.path.join(this_file.split('pywrds')[0], 'pywrds')
+user_info_filename = os.path.join(user_path, 'user_info.txt')
 if os.path.exists(user_info_filename):
     with open(user_info_filename, 'r') as f:  # r instead of rb for Python3
         # compatibility #
