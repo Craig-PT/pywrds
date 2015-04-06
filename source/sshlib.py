@@ -155,31 +155,31 @@ def ssh_keygen():
 	ssh_dirlist = os.listdir(ssh_dir)
 	if 'id_rsa' not in ssh_dirlist and 'id_rsa.pub' not in ssh_dirlist:
 		key = Crypto.PublicKey.RSA.generate(2048)
-		fd = open(os.path.join(ssh_dir,'id_rsa'),'wb')
-		fd.write(key.exportKey())
-		fd.close()
-		fd = open(os.path.join(ssh_dir,'id_rsa.pub'),'wb')
-		fd.write(key.publickey().exportKey('OpenSSH'))
-		fd.close()
+		with open(os.path.join(ssh_dir,'id_rsa'),'wb') as fd:
+			fd.write(key.exportKey())
+		with open(os.path.join(ssh_dir,'id_rsa.pub'),'wb') as fd:
+			fd.write(key.publickey().exportKey('OpenSSH'))
 		os.chmod(os.path.join(ssh_dir,'id_rsa'),600)
 		os.chmod(os.path.join(ssh_dir,'id_rsa.pub'),600)
 		os.chmod(ssh_dir,600)
 		home_dir = os.path.split(ssh_dir)[0] # alt: os.path.expanduser('~')
 		os.chmod(home_dir,700)
 	elif 'id_rsa' in ssh_dirlist:
-		fd = open(os.path.join(ssh_dir,'id_rsa'),'rb')
-		private_key = fd.read()
-		fd.close()
-		pk = Crypto.PublicKey.RSA.importKey(private_key)
-		public_key = pk.publickey().exportKey('OpenSSH')
-		fd = open(os.path.join(ssh_dir,'id_rsa.pub'),'wb')
-		fd.write(public_key)
-		fd.close()
-		os.chmod(os.path.join(ssh_dir,'id_rsa'),600)
-		os.chmod(os.path.join(ssh_dir,'id_rsa.pub'),600)
-		os.chmod(ssh_dir,600)
-		home_dir = os.path.split(ssh_dir)[0] # alt: os.path.expanduser('~')
-		os.chmod(home_dir,700)
+		with open(os.path.join(ssh_dir,'id_rsa'),'rb') as fd:
+			private_key = fd.read()
+		# BUG: PyCrypto not working with password encrypted keys, see
+		# http://stackoverflow.com/questions/20613946/how-can-i-read-a-standard-openssl-rsa-private-key-with-pycrypto-and-decrypt-with
+		# Plus, not sure why you need all this when you just pass back the
+		# key_path.
+		#pk = Crypto.PublicKey.RSA.importKey(private_key)
+		#public_key = pk.publickey().exportKey('OpenSSH')
+		#with open(os.path.join(ssh_dir,'id_rsa.pub'),'wb') as fd:
+		#	fd.write(public_key)
+		#os.chmod(os.path.join(ssh_dir,'id_rsa'),600)
+		#os.chmod(os.path.join(ssh_dir,'id_rsa.pub'),600)
+		#os.chmod(ssh_dir,600)
+		#home_dir = os.path.split(ssh_dir)[0] # alt: os.path.expanduser('~')
+		#os.chmod(home_dir,700)
 	elif 'id_rsa.pub' in ssh_dirlist:
 		print('ssh_keygen() expected the directory '+ssh_dir
 			+' to contain either zero or both of "id_rsa", "id_rsa.pub",'
