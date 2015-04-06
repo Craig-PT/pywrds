@@ -7,29 +7,28 @@ last edit: 2014-08-13
 """
 thisAlgorithmBecomingSkynetCost = 99999999999
 import datetime, json, os, re, sys, time
-################################################################################
+
 from . import sshlib
 
 wrds_domain = 'wrds.wharton.upenn.edu'
 
-################################################################################
 
 user_info = {}
 this_file = os.path.abspath(__file__)
 user_path = this_file.split('source')[0]
 user_info_filename = os.path.join(user_path,'user_info.txt')
 if os.path.exists(user_info_filename):
-    fd = open(user_info_filename,'r') # r instead of rb for Python3 compatibility #
-    content = fd.read()
-    content = content.replace(u'\xe2\x80\x9c',u'"')
-    content = content.replace(u'\xe2\x80\x9d',u'"')
-    try:
-        user_info = json.loads(content)
-    except ValueError:
-        print ('pywrds.wrdslib warning: user_info.txt file does not '
-            + 'conform to json format.  Please address this '
-            + 'and reload ectools.')
-    fd.close()
+    with open(user_info_filename, 'r') as f:  # r instead of rb for Python3
+        # compatibility #
+        content = f.read()
+        content = content.replace(u'\xe2\x80\x9c', u'"')
+        content = content.replace(u'\xe2\x80\x9d', u'"')
+        try:
+            user_info = json.loads(content)
+        except ValueError:
+            print ('pywrds.wrdslib warning: user_info.txt file does not '
+                    + 'conform to json format.  Please address this '
+                    + 'and reload ectools.')
 else:
     print ('pywrds.wrdslib warning: Please create a user_info.txt '
         + 'file conforming to the format given in the '
@@ -37,11 +36,6 @@ else:
 
 
 
-
-
-
-
-################################################################################
 download_path = os.path.join(user_path,'output')
 if 'download_path' in user_info:
     download_path = user_info['download_path']
@@ -58,7 +52,7 @@ if 'last_wrds_download' not in user_info.keys():
     user_info['last_wrds_download'] = {}
 last_wrds_download = user_info['last_wrds_download']
 
-################################################################################
+
 # first_dates is an estimate of the first date YYYYMMDD on        #
 # which data is available for a given WRDS dataset.               #
 first_dates = {
@@ -171,8 +165,6 @@ dataset_list = [
 ]
 
 
-
-################################################################################
 def rows_per_file_adjusted(dataset):
     """rows_per_file_adjusted(dataset)
 
@@ -197,9 +189,10 @@ def rows_per_file_adjusted(dataset):
 
 
 
-################################################################################
 now = time.localtime()
 [this_year, this_month, today] = [now.tm_year, now.tm_mon, now.tm_mday]
+
+
 def get_ymd_range(min_date, dataset, weekdays=1):
     """get_ymd_range(min_date, dataset, weekdays=1) gets a list of
     tuples [year, month, date] over which to iterate in wrds_loop.  Some
@@ -231,7 +224,6 @@ def get_ymd_range(min_date, dataset, weekdays=1):
     return ymdrange
 
 
-################################################################################
 def get_loop_frequency(dataset, year):
     """get_loop_frequency(dataset, year) finds the best frequency at which
     to query the server for the given dataset so as to avoid producing
@@ -256,7 +248,6 @@ def get_loop_frequency(dataset, year):
     return frequency
 
 
-################################################################################
 def fix_weekdays(ymds, weekdays=1):
     """fix_weekdays(ymds, weekdays=1) takes a set of [year,month,date]
     tuples "ymds" and removes those which are not valid days,
@@ -280,18 +271,8 @@ def fix_weekdays(ymds, weekdays=1):
             # weekdays==0 --> keey any valid day     #
             ymds2.append([y,m,d])
     return ymds2
-################################################################################
 
 
-
-
-
-
-
-
-
-
-################################################################################
 def fix_input_name(dataset, year, month, day, rows=[]):
     """fix_input_name(dataset, year, month, day, rows=[])
     adjusts the user-supplied dataset name to use the same
@@ -336,8 +317,6 @@ def fix_input_name(dataset, year, month, day, rows=[]):
     return [dataset, output_file]
 
 
-
-################################################################################
 def wrds_sas_script(dataset, year, month=0, day=0, rows=[]):
     """wrds_sas_script(dataset, year, month=0, day=0, rows=[])
     generates a .sas file which is executed on the WRDS server
@@ -361,51 +340,44 @@ def wrds_sas_script(dataset, year, month=0, day=0, rows=[]):
     sas_file = sas_file + '.sas'
 
     [dataset, output_file] = fix_input_name(dataset, Y, M, D, R)
-    fd = open(os.path.join(download_path,sas_file),'wb')
-    fd.write('DATA new_data;\n')
-    fd.write('\tSET '+dataset)
-    if Y != 'all':
-        where_query = ' (where = ('
-        year_query = ('(year('+wrds_datevar(dataset)+')'
-            +' between '+str(Y)+' and '+str(Y)+')')
-        where_query = where_query + year_query
+    with open(os.path.join(download_path,sas_file),'wb') as fd:
+        fd.write('DATA new_data;\n')
+        fd.write('\tSET '+dataset)
+        if Y != 'all':
+            where_query = ' (where = ('
+            year_query = ('(year('+wrds_datevar(dataset)+')'
+                +' between '+str(Y)+' and '+str(Y)+')')
+            where_query = where_query + year_query
 
-        if M != 0:
-            month_query = (' and (month('+wrds_datevar(dataset)
-                +') between '+str(M)+' and '+str(M)+')')
-            where_query = where_query+month_query
+            if M != 0:
+                month_query = (' and (month('+wrds_datevar(dataset)
+                    +') between '+str(M)+' and '+str(M)+')')
+                where_query = where_query+month_query
 
-        if D != 0:
-            day_query = (' and (day('+wrds_datevar(dataset)
-                +') between '+str(D)+' and '+str(D)+')')
-            where_query = where_query+day_query
+            if D != 0:
+                day_query = (' and (day('+wrds_datevar(dataset)
+                    +') between '+str(D)+' and '+str(D)+')')
+                where_query = where_query+day_query
 
-        where_query = where_query+'));\n'
-        fd.write(where_query)
-    else:
-        fd.write(';\n')
+            where_query = where_query+'));\n'
+            fd.write(where_query)
+        else:
+            fd.write(';\n')
 
-    if R != []:
-        rowquery = ('\tIF ('+str(R[0])+'<= _N_<= '+str(R[1])+');\n')
-        fd.write(rowquery)
+        if R != []:
+            rowquery = ('\tIF ('+str(R[0])+'<= _N_<= '+str(R[1])+');\n')
+            fd.write(rowquery)
 
-    fd.write('\n')
-    fd.write('proc export data = new_data\n')
-    fd.write(('\toutfile = "~/'+output_file+'" \n'
-    +'\tdbms = tab \n'
-    +'\treplace; \n'
-    +'\tputnames = yes; \n'
-    +'run; \n'))
-    fd.close()
+        fd.write('\n')
+        fd.write('proc export data = new_data\n')
+        fd.write(('\toutfile = "~/'+output_file+'" \n'
+        +'\tdbms = tab \n'
+        +'\treplace; \n'
+        +'\tputnames = yes; \n'
+        +'run; \n'))
     return [sas_file, output_file, dataset]
-################################################################################
 
 
-
-
-
-
-################################################################################
 def update_user_info(numfiles, new_files, fname, dataset, year, month=0, day=0):
     """update_user_info(numfiles, new_files, fname, dataset, year, month=0, day=0)
     amends the user_info file to reflect the most recent download dates
@@ -418,21 +390,17 @@ def update_user_info(numfiles, new_files, fname, dataset, year, month=0, day=0):
         if 'last_wrds_download' not in user_info.keys():
             user_info['last_wrds_download'] = {}
         user_info['last_wrds_download'][dataset] = year*10000 + month*100 + day
-        fd = open(user_info_filename,'wb')
-        fd.write(json.dumps(user_info, indent=4))
-        fd.close()
+        with open(user_info_filename,'wb') as fd:
+            fd.write(json.dumps(user_info, indent=4))
     else:
         print ('Could not retrieve: ' + fname)
     return
-################################################################################
 
 
-
-
-################################################################################
 _get_all = ['crsp.stocknames', 'comp.company', 'comp.g_company']
 # datasets for which the default is to download the entire   #
 # dataset at once                                            #
+
 
 def min_YMD(min_date, dataset):
     """min_YMD(min_date, dataset) finds (year,month,day) at which
@@ -528,10 +496,8 @@ def min_YMD(min_date, dataset):
             min_year = 1880
 
     return [min_year, min_month, min_day]
-################################################################################
 
 
-################################################################################
 def wrds_datevar(filename):
     """wrds_datevar(filename)
     Different datasets in WRDS use different names for
@@ -554,13 +520,8 @@ def wrds_datevar(filename):
     if re.search('^ibes',filename):
         return 'anndats'
     return 'date'
-################################################################################
 
 
-
-
-
-################################################################################
 def setup_wrds_key():
     """setup_wrds_key() sets up a key-based authentication on
     the wrds server, so that the user can log in without a
@@ -577,8 +538,6 @@ def setup_wrds_key():
     return [ssh, sftp]
 
 
-
-################################################################################
 def get_wrds_institution(ssh, sftp):
     """get_wrds_institution(ssh, sftp) gets the institution associated
     with the user's account on the wrds server.
@@ -598,9 +557,8 @@ def get_wrds_institution(ssh, sftp):
         if wrds_institution == []:
             wrds_institution = institution_path
             user_info['wrds_institution'] = wrds_institution
-            fd = open(user_info_filename,'wb')
-            fd.write(json.dumps(user_info, indent=4))
-            fd.close()
+            with open(user_info_filename,'wb') as fd:
+                fd.write(json.dumps(user_info, indent=4))
         else:
             print ('user_info["wrds_institution"] does not '
                 + 'match the directory "'+institution_path+'" '
@@ -610,9 +568,6 @@ def get_wrds_institution(ssh, sftp):
     return institution_path
 
 
-
-
-################################################################################
 autoexec_text = ("*  The library name definitions below are used by SAS;\n"
     +"*  Assign default libref for WRDS (Wharton Research Data Services);"
     +"\n\n   %include '!SASROOT/wrdslib.sas' ;\n\n\n"
