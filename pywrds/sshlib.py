@@ -7,12 +7,10 @@ last edit: 2014-08-21
 thisAlgorithmBecomingSkynetCost = 99999999999
 import getpass, os, re, signal, socket, string, sys, time
 import logging, logging.handlers
-################################################################################
+
 #@Todo: Handle BadHostKeyException #
 
 
-
-################################################################################
 def getSSH(ssh, sftp, domain, username, ports=[22]):
     """
     getSSH(ssh, sftp, domain, username, ports=[22])
@@ -92,14 +90,6 @@ def getSSH(ssh, sftp, domain, username, ports=[22]):
     return [ssh, sftp]
 
 
-
-
-
-
-
-
-
-################################################################################
 def find_ssh_key(make=1):
     """find_ssh_key(make=1)
 
@@ -124,13 +114,6 @@ def find_ssh_key(make=1):
     return key_path
 
 
-
-
-
-
-
-
-################################################################################
 def ssh_keygen():
     """ssh_keygen()
 
@@ -190,13 +173,6 @@ def ssh_keygen():
     return key_path
 
 
-
-
-
-
-
-
-################################################################################
 def put_ssh_key(domain, username):
     """put_ssh_key(domain, username)
 
@@ -286,35 +262,6 @@ def put_ssh_key(domain, username):
     return [ssh, sftp]
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-################################################################################
-################################################################################
 def _put_carefully(local_path, remote_path, ssh, sftp, domain, username, ports, lag=60):
     """_put_carefully(local_path, remote_path, ssh, sftp, domain, username, ports)
 
@@ -344,10 +291,6 @@ def _put_carefully(local_path, remote_path, ssh, sftp, domain, username, ports, 
     return [ssh, sftp, success, time.time()-tic]
 
 
-
-
-
-################################################################################
 def _try_put(local_path, remote_path, ssh, sftp, domain, username, ports=[22]):
     """_try_put(local_path, remote_path, ssh, sftp, domain, username, ports)
 
@@ -379,11 +322,6 @@ def _try_put(local_path, remote_path, ssh, sftp, domain, username, ports=[22]):
     return [success, ssh, sftp]
 
 
-
-
-
-
-################################################################################
 def _check_stats(local_path, remote_path, ssh, sftp, domain, username, ports, lag):
     """_check_stats(local_path, remote_path, ssh, sftp, domain, username, ports, lag)
 
@@ -463,12 +401,6 @@ def _check_stats(local_path, remote_path, ssh, sftp, domain, username, ports, la
     return [ssh, sftp, 1, 0]
 
 
-
-
-
-
-
-################################################################################
 def _try_get(ssh, sftp, domain, username, remote_path, local_path, ports=[22]):
     """_try_get(ssh, sftp, domain, username, remote_path, local_path, ports=[22])
 
@@ -501,14 +433,6 @@ def _try_get(ssh, sftp, domain, username, remote_path, local_path, ports=[22]):
     return [success, ssh, sftp, time.time()-tic]
 
 
-
-
-
-
-
-
-
-################################################################################
 def _try_listdir(remote_dir, ssh, sftp, domain, username, ports=[22]):
     """_try_listdir(remote_dir, ssh, sftp, domain, username, ports=[22])
 
@@ -527,8 +451,8 @@ def _try_listdir(remote_dir, ssh, sftp, domain, username, ports=[22]):
     while success == 0 and numtrys < maxtrys:
         try:
             remote_list = sftp.listdir_attr(remote_dir)
-            success=1
-        except (IOError,EOFError,paramiko.SSHException):
+            success = 1
+        except (IOError, EOFError, paramiko.SSHException):
             [ssh, sftp] = getSSH(ssh, sftp, domain, username, ports)
             numtrys += 1
 
@@ -536,12 +460,6 @@ def _try_listdir(remote_dir, ssh, sftp, domain, username, ports=[22]):
     return [ssh, sftp, fdict]
 
 
-
-
-
-
-
-################################################################################
 def _try_get_remote_stats(remote_path, ssh, sftp, domain, username, ports):
     """_try_get_remote_stats(remote_path, ssh, sftp, domain, username, ports)
 
@@ -565,12 +483,6 @@ def _try_get_remote_stats(remote_path, ssh, sftp, domain, username, ports):
     return [ssh, sftp, stats, success]
 
 
-
-
-
-
-
-################################################################################
 def _try_exec(command, ssh, sftp, domain, username, ports=[22]):
     [success, numtrys, maxtrys] = [0, 0 ,3]
     [stdin, stdout, stderr] = [None, None, None]
@@ -585,12 +497,6 @@ def _try_exec(command, ssh, sftp, domain, username, ports=[22]):
     return [success, stdin, stdout, stderr, ssh, sftp]
 
 
-
-
-
-
-
-################################################################################
 def print_func(level=1):
     """print_func(level=1)
 
@@ -608,9 +514,6 @@ def print_func(level=1):
     return module_name +'.'+ function_name
 
 
-
-
-################################################################################
 default_logger = logging.getLogger('log')
 default_logger.setLevel(logging.INFO)
 log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -621,13 +524,6 @@ default_handler.setFormatter(default_formatter)
 default_logger.addHandler(default_handler)
 
 
-
-
-
-
-
-
-################################################################################
 def timeout_decorator(timeout_time, default):
     """timeout_decorator(timeout_time, default)
 
@@ -670,17 +566,8 @@ def quick_password(prompt="Please enter your password: "):
     """
     password = getpass.getpass(prompt)
     return password
-################################################################################
 
 
-
-
-
-
-
-
-
-################################################################################
 has_modules = {}
 try:
     import paramiko
@@ -710,5 +597,4 @@ except:
         +"Your mileage may vary"
         )
     has_modules['Crypto.PublicKey.RSA'] = 0
-
 

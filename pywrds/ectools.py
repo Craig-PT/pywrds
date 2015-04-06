@@ -12,7 +12,7 @@ last edit: 2014-08-12
 """
 thisAlgorithmBecomingSkynetCost = 99999999999 # http://xkcd.com/534/
 import datetime, math, os, re, shutil, sys, time
-################################################################################
+
 from . import sshlib, wrdslib
 
 getSSH = sshlib.getSSH
@@ -27,9 +27,6 @@ _uname = wrdslib.wrds_username
 _institution = wrdslib.wrds_institution
 
 
-
-
-################################################################################
 def get_numlines_from_log(outfile, dname=_dlpath):
     """get_numlines_from_log(outfile, dname=_dlpath) reads the
     SAS log file created during get_wrds to find the number of
@@ -98,7 +95,6 @@ def _rename_after_download():
     return
 
 
-################################################################################
 def get_wrds(dataset, Y, M=0, D=0, ssh=[], sftp=[], recombine=1):
     """get_wrds(dataset, Y=0, M=0, D=0, ssh=[], sftp=[], recombine=1)
 
@@ -132,12 +128,12 @@ def get_wrds(dataset, Y, M=0, D=0, ssh=[], sftp=[], recombine=1):
     [startrow, numfiles, total_rows, tic] = [1, 0, 0, time.time()]
     rows_per_file = wrdslib.rows_per_file_adjusted(dataset)
     [dset2, outfile] = wrdslib.fix_input_name(dataset, Y, M, D, [])
-    if os.path.exists(os.path.join(_dlpath,outfile)):
+    if os.path.exists(os.path.join(_dlpath, outfile)):
         keep_going = 0
     while keep_going:
         R = [startrow, startrow-1+rows_per_file]
         [dset2, outfile] = wrdslib.fix_input_name(dataset, Y, M, D, R)
-        if not os.path.exists(os.path.join(_dlpath,outfile)):
+        if not os.path.exists(os.path.join(_dlpath, outfile)):
             [keep_going, ssh, sftp, dt] = _get_wrds_chunk(dataset, Y, M, D, R, ssh, sftp)
         if keep_going > 0:
             numfiles += 1
@@ -196,7 +192,6 @@ def get_wrds(dataset, Y, M=0, D=0, ssh=[], sftp=[], recombine=1):
     return [numfiles, total_rows, ssh, sftp, time.time()-tic]
 
 
-################################################################################
 def _get_wrds_chunk(dataset, Y, M=0, D=0, R=[], ssh=[], sftp=[]):
     """_get_wrds_chunk(dataset, Y, M=0, D=0, rows=[], ssh=[], sftp=[])
 
@@ -245,10 +240,6 @@ def _get_wrds_chunk(dataset, Y, M=0, D=0, R=[], ssh=[], sftp=[]):
     return [0, ssh, sftp, time.time()-tic]
 
 
-
-
-
-################################################################################
 now = time.localtime()
 [this_year, this_month, today] = [now.tm_year, now.tm_mon, now.tm_mday]
 def wrds_loop(dataset, min_date=0, recombine=1, ssh=None, sftp=None):
@@ -293,23 +284,6 @@ def wrds_loop(dataset, min_date=0, recombine=1, ssh=None, sftp=None):
     return [numfiles, time.time()-tic]
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-################################################################################
 def _put_sas_file(ssh, sftp, outfile, sas_file):
     """_put_sas_file(ssh, sftp, outfile, sas_file) puts the sas_file
     in the appropriate directory on the wrds server, handling
@@ -334,18 +308,18 @@ def _put_sas_file(ssh, sftp, outfile, sas_file):
     for old_file in old_export_files:
         try:
             sftp.remove(old_file.filename)
-        except (IOError,EOFError,paramiko.SSHException):
+        except (IOError, EOFError, paramiko.SSHException):
             pass
         initial_files.remove(old_file)
 
     pattern = '[0-9]*rows[0-9]+to[0-9]+\.tsv$'
     old_outfiles = [x for x in initial_files
-        if re.sub(pattern,'',x.filename) == re.sub(pattern,'',outfile)]
+        if re.sub(pattern, '', x.filename) == re.sub(pattern, '', outfile)]
 
     for old_file in old_outfiles:
         try:
             sftp.remove(old_file.filename)
-        except (IOError,EOFError,paramiko.SSHException):
+        except (IOError, EOFError, paramiko.SSHException):
             pass
         initial_files.remove(old_file)
         ## see if the file is something you                ##
@@ -375,9 +349,8 @@ def _put_sas_file(ssh, sftp, outfile, sas_file):
         [exec_succes, stdin, stdout, stderr, ssh, sftp] = _try_exec(ssh_command, ssh, sftp, _domain, _uname)
         #ssh.exec_command('cp autoexec.sas .autoexecsas')
     elif autoexecs == []:
-        fd = open('autoexec.sas','wb')
-        fd.write(wrdslib.autoexec_text)
-        fd.close()
+        with open('autoexec.sas', 'wb') as fd:
+            fd.write(wrdslib.autoexec_text)
         local_path = 'autoexec.sas'
         remote_path = 'autoexec.sas'
         [put_success, ssh, sftp] = _try_put(local_path, remote_path, ssh, sftp, _domain, _uname)
@@ -402,9 +375,6 @@ def _put_sas_file(ssh, sftp, outfile, sas_file):
     return put_success
 
 
-
-
-################################################################################
 def _sas_step(ssh, sftp, sas_file, outfile):
     """_sas_step(ssh, sftp, sas_file, outfile) wraps the running of
     the sas command (_run_sas_command) with retrying and
@@ -439,10 +409,6 @@ def _sas_step(ssh, sftp, sas_file, outfile):
     return exit_status
 
 
-
-
-
-################################################################################
 def _run_sas_command(ssh, sftp, sas_file, outfile):
     """_run_sas_command(ssh, sftp, sas_file, outfile) executes
     the sas script sas_file on the wrds server and waits for
@@ -470,9 +436,6 @@ def _run_sas_command(ssh, sftp, sas_file, outfile):
     return exit_status
 
 
-
-
-################################################################################
 def _handle_sas_failure(ssh, sftp, exit_status, outfile, log_file):
     """_handle_sas_failure(ssh, sftp, exit_status, outfile, log_file)
     checks the sas exit status returned by the wrds server and
@@ -531,9 +494,6 @@ def _handle_sas_failure(ssh, sftp, exit_status, outfile, log_file):
     return exit_status
 
 
-
-
-################################################################################
 def _wait_for_sas_file_completion(ssh, sftp, outfile):
     """_wait_for_sas_file_completion(ssh, sftp, outfile) checks the size
     of the file outfile produced on the wrds server within get_wrds.
@@ -570,10 +530,6 @@ def _wait_for_sas_file_completion(ssh, sftp, outfile):
     return remote_size
 
 
-
-
-
-################################################################################
 def _retrieve_file(ssh, sftp, outfile, remote_size):
     """_retrieve_file(ssh, sftp, outfile, remote_size) retrieves the
     file outfile produced on the wrds server in get_wrds, including
@@ -623,13 +579,6 @@ def _retrieve_file(ssh, sftp, outfile, remote_size):
     return [get_success, time.time()-tic]
 
 
-
-
-
-
-
-
-################################################################################
 def _wait_for_retrieve_completion(outfile, get_success, maxwait=1200):
     """_wait_for_retrieve_completion(outfile, get_success) checks the
     size of the downloaded file outfile multiple times and waits for
@@ -661,12 +610,6 @@ def _wait_for_retrieve_completion(outfile, get_success, maxwait=1200):
     return local_size
 
 
-
-
-
-
-
-################################################################################
 def _compare_local_to_remote(ssh, sftp, outfile, remote_size, local_size):
     """_compare_local_to_remote(ssh, sftp, outfile, remote_size, local_size)
     compares the size of the file "outfile" downloaded (local_size) to
@@ -700,13 +643,6 @@ def _compare_local_to_remote(ssh, sftp, outfile, remote_size, local_size):
     return compare_success
 
 
-
-
-
-
-
-
-################################################################################
 def _get_log_file(ssh, sftp, log_file, sas_file):
     """_get_log_file(log_file, sas_file)
 
@@ -737,25 +673,6 @@ def _get_log_file(ssh, sftp, log_file, sas_file):
     return [success, ssh, sftp]
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-################################################################################
 def find_wrds(filename, ssh=None, sftp=None):
     """find_wrds(dataset_name, ssh=None, sftp=None) will query
     WRDS for a list of tables available from dataset_name.  For
@@ -825,19 +742,8 @@ def find_wrds(filename, ssh=None, sftp=None):
 
 
     return [flist, ssh, sftp]
-################################################################################
 
 
-
-
-
-
-
-
-
-
-
-################################################################################
 def _recombine_ready(fname, dname=None, suppress=0):
     """_recombine_ready(fname, dname=None, suppress=0)
     checks files downloaded by get_wrds to see if the loop
@@ -904,10 +810,6 @@ def _recombine_ready(fname, dname=None, suppress=0):
     return isready
 
 
-
-
-
-################################################################################
 def recombine_files(fname, dname=None, suppress=0):
     """recombine_files(fname, dname=None, suppress=0)
     reads the files downloaded by get_wrds and combines them
@@ -978,7 +880,7 @@ def recombine_files(fname, dname=None, suppress=0):
             os.remove(os.path.join(dname,fname1))
     return combined_files
 
-################################################################################
+
 def get_numlines(path2file):
     """get_numlines(path2file) reads a textfile located at
     path2file and returns the number of lines found.
@@ -996,7 +898,6 @@ def get_numlines(path2file):
     return numlines
 
 
-################################################################################
 has_modules = {}
 for module_name in ['paramiko']:
     try:
@@ -1011,7 +912,6 @@ for module_name in ['paramiko']:
         has_modules[module_name] = 0
 
 
-################################################################################
 def main():
     args = sys.argv
     if len(args) >= 2:
@@ -1031,10 +931,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
 

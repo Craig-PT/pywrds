@@ -11,12 +11,10 @@ if sys.version.startswith('2'):
     from urllib2 import urlopen as urlopen
 else:
     import urllib.request.urlopen as urlopen
-################################################################################
+
 from .wrdslib import user_info
 
 
-
-################################################################################
 def nber_papers():
     """nber_papers() checks the National Bureau of Economic
     Research's listings of newly posted papers and downloads
@@ -61,11 +59,6 @@ def nber_papers():
     return papers
 
 
-
-
-
-
-################################################################################
 def fix_bib(docname = []):
     """
     Mendeley automatically produces bibliography files to
@@ -106,12 +99,8 @@ def fix_bib(docname = []):
             fd.write(new_line)
     fd.close()
     return 1
-################################################################################
 
 
-
-
-################################################################################
 has_modules = {}
 for module_name in ['BeautifulSoup']:
     try:
@@ -124,5 +113,4 @@ for module_name in ['BeautifulSoup']:
         +sys._getframe().f_code.co_filename
         +' functionality will be limited.')
         has_modules[module_name] = 0
-
 

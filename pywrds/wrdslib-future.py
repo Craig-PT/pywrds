@@ -1,10 +1,12 @@
 thisAlgorithmBecomingSkynetCost = 99999999999
 import os, sys
-################################################################################
+
 
 #def up2date(ssh=[], sftp=[]):
 
 _crsp_dsets = ['crsp.msf', 'crsp.dsf']
+
+
 def get_crsp():
     get_wrds(dataset='crsp.stocknames', Y='all')
     get_wrds(dataset='crsp.dsedelist', Y='all')
@@ -16,6 +18,8 @@ def get_crsp():
     return
 
 _comp_dsets = ['comp.fundq', 'comp.g_fundq', 'comp.idx_daily', 'comp.exrt_dly']
+
+
 def get_compustat():
     get_wrds(dataset='comp.company', Y='all')
     get_wrds(dataset='comp.g_company', Y='all')
@@ -25,6 +29,8 @@ def get_compustat():
     return
 
 _optionm_dsets = ['optionm.opprcd']
+
+
 def get_optionm():
     get_wrds(dataset='optionm.optionmnames', Y='all')
     for dset in _optionm_dsets:
@@ -38,6 +44,8 @@ _ibes_dsets = [
     'ibes.det_xepsint',
     'ibes.recddet'
     ]
+
+
 def get_ibes():
     get_wrds(dataset='ibes.id', Y='all')
     for dset in _ibes_dsets:
@@ -45,6 +53,8 @@ def get_ibes():
     return
 
 _tfn_dsets = ['tfn.s12', 'tfn.s34']
+
+
 def get_tfn():
     get_wrds(dataset='tfn.company', Y='all')
     get_wrds(dataset='tfn.s12names', Y='all')
@@ -54,16 +64,12 @@ def get_tfn():
     return
 
 _taq_dsets = ['taq.ct', 'taq.cq']
+
+
 def get_taq():
     for dset in _taq_dsets:
         wrds_loop(dataset=dset, min_date=0, recombine=1)
     return
-
-
-
-
-
-
 
 
 _other_datasets = {
@@ -87,13 +93,11 @@ _other_datasets = {
     'compm': 'Unknown',
     'compq': 'Unknown'
 }
-#
 
 
-
-
-################################################################################
 _wrds_URL = 'https://wrds-web.wharton.upenn.edu/wrds/'
+
+
 def wrds_register():
     """wrds_register()
     walks the user through the process of setting up a WRDS account.
@@ -222,14 +226,8 @@ def wrds_register():
         + 'from wrds or your institution confirming '
         + 'your registration.')
     return 1
-################################################################################
 
 
-
-
-
-
-################################################################################
 has_modules = {}
 try:
     import selenium.webdriver
@@ -239,7 +237,3 @@ except ImportError:
         +'selenium.webdriver.  Please "pip install selenium".  '
         +' Until then some functionality will be limited.')
     has_modules['selenium.webdriver'] = 0
-
-
-
-

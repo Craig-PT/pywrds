@@ -35,7 +35,6 @@ else:
         + 'user_info_example.txt file.')
 
 
-
 download_path = os.path.join(user_path,'output')
 if 'download_path' in user_info:
     download_path = user_info['download_path']
@@ -188,7 +187,6 @@ def rows_per_file_adjusted(dataset):
     return rows_per_file
 
 
-
 now = time.localtime()
 [this_year, this_month, today] = [now.tm_year, now.tm_mon, now.tm_mday]
 
@@ -330,17 +328,17 @@ def wrds_sas_script(dataset, year, month=0, day=0, rows=[]):
     mstr = '' + (M != 0)*('0'*(M<10)+str(M))
     dstr = '' + (D != 0)*('0'*(D<10)+str(D))
     ymdstr = ystr + mstr + dstr
-    sas_file = 'wrds_export_'+re.sub('\.','_',dataset)
+    sas_file = 'wrds_export_'+re.sub('\.', '_', dataset)
 
     if R != []:
         rowstr = 'rows'+str(R[0])+'to'+str(R[1])
-        sas_file =  sas_file + ymdstr + rowstr
+        sas_file = sas_file + ymdstr + rowstr
     else:
         sas_file = sas_file + ymdstr
     sas_file = sas_file + '.sas'
 
     [dataset, output_file] = fix_input_name(dataset, Y, M, D, R)
-    with open(os.path.join(download_path,sas_file),'wb') as fd:
+    with open(os.path.join(download_path, sas_file), 'wb') as fd:
         fd.write('DATA new_data;\n')
         fd.write('\tSET '+dataset)
         if Y != 'all':
@@ -352,7 +350,7 @@ def wrds_sas_script(dataset, year, month=0, day=0, rows=[]):
             if M != 0:
                 month_query = (' and (month('+wrds_datevar(dataset)
                     +') between '+str(M)+' and '+str(M)+')')
-                where_query = where_query+month_query
+                where_query = where_query + month_query
 
             if D != 0:
                 day_query = (' and (day('+wrds_datevar(dataset)
@@ -572,5 +570,3 @@ autoexec_text = ("*  The library name definitions below are used by SAS;\n"
     +"*  Assign default libref for WRDS (Wharton Research Data Services);"
     +"\n\n   %include '!SASROOT/wrdslib.sas' ;\n\n\n"
     )
-
-
