@@ -10,7 +10,7 @@ the program tries to connect to the WRDS server.
 
 last edit: 2014-08-12
 """
-thisAlgorithmBecomingSkynetCost = 99999999999 # http://xkcd.com/534/
+thisAlgorithmBecomingSkynetCost = 99999999999  # http://xkcd.com/534/
 import datetime, math, os, re, shutil, sys, time
 
 from . import sshlib, wrdslib
@@ -137,9 +137,9 @@ def get_wrds(dataset, Y, M=0, D=0, ssh=[], sftp=[], recombine=1):
             [keep_going, ssh, sftp, dt] = _get_wrds_chunk(dataset, Y, M, D, R, ssh, sftp)
         if keep_going > 0:
             numfiles += 1
-            if os.path.exists(os.path.join(_dlpath,outfile)):
+            if os.path.exists(os.path.join(_dlpath, outfile)):
                 log_lines = get_numlines_from_log(outfile, dname=_dlpath)
-                numlines = get_numlines(os.path.join(_dlpath,outfile))
+                numlines = get_numlines(os.path.join(_dlpath, outfile))
                 if log_lines > numlines:
                     print('get_wrds error: file '
                         +outfile+' has '+ str(numlines)
@@ -167,20 +167,20 @@ def get_wrds(dataset, Y, M=0, D=0, ssh=[], sftp=[], recombine=1):
                             +'log_lines = '+str(log_lines))
                     if startrow == 1:
                         subfrom = 'rows1to'+str(rows_per_file)
-                        newname = re.sub(subfrom,'',outfile)
-                        newp2f = os.path.join(_dlpath,newname)
-                        oldp2f = os.path.join(_dlpath,outfile)
-                        os.rename(oldp2f,newp2f)
+                        newname = re.sub(subfrom, '', outfile)
+                        newp2f = os.path.join(_dlpath, newname)
+                        oldp2f = os.path.join(_dlpath, outfile)
+                        os.rename(oldp2f, newp2f)
                     else:
                         subfrom = 'to'+str(R[-1])
                         subto = 'to'+str(R[0]-1+numlines)
-                        newname = re.sub(subfrom,subto,outfile)
-                        oldp2f = os.path.join(_dlpath,outfile)
-                        newp2f = os.path.join(_dlpath,newname)
-                        os.rename(oldp2f,newp2f)
+                        newname = re.sub(subfrom, subto, outfile)
+                        oldp2f = os.path.join(_dlpath, outfile)
+                        newp2f = os.path.join(_dlpath, newname)
+                        os.rename(oldp2f, newp2f)
                     if recombine == 1:
                         subfrom = 'rows[0-9]*to[0-9]*\.tsv'
-                        recombine_name = re.sub(subfrom,'',outfile)
+                        recombine_name = re.sub(subfrom, '', outfile)
                         recombine_files(recombine_name, dname=_dlpath)
                 else:
                     startrow += rows_per_file
@@ -242,6 +242,8 @@ def _get_wrds_chunk(dataset, Y, M=0, D=0, R=[], ssh=[], sftp=[]):
 
 now = time.localtime()
 [this_year, this_month, today] = [now.tm_year, now.tm_mon, now.tm_mday]
+
+
 def wrds_loop(dataset, min_date=0, recombine=1, ssh=None, sftp=None):
     """wrds_loop(dataset, min_date=0, recombine=1, ssh=None, sftp=None)
     executes get_wrds(database_name,...) over all years and
