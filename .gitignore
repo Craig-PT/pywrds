@@ -5,3 +5,6 @@
 
 # Distribution / packaging
 *.egg-info/
+
+# Output folder
+output/

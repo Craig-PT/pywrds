@@ -11,8 +11,8 @@ import datetime, json, os, re, sys, time
 from . import sshlib
 from _wrds_db_descriptors import *
 
-wrds_domain = 'wrds.wharton.upenn.edu'
-
+now = time.localtime()
+[this_year, this_month, today] = [now.tm_year, now.tm_mon, now.tm_mday]
 
 user_info = {}
 this_file = os.path.abspath(__file__)
@@ -36,7 +36,7 @@ else:
         + 'user_info_example.txt file.')
 
 
-download_path = os.path.join(user_path,'output')
+download_path = os.path.join(user_path, 'output')
 if 'download_path' in user_info:
     download_path = user_info['download_path']
 
@@ -69,15 +69,11 @@ def rows_per_file_adjusted(dataset):
     return rows_per_file
     """
     rows_per_file = 10**7
-    if dataset.replace('.','_') == 'optionm_opprcd':
+    if dataset.replace('.', '_') == 'optionm_opprcd':
         rows_per_file = 10**6
-    elif dataset.replace('.','_') == 'optionm_optionmnames':
+    elif dataset.replace('.', '_') == 'optionm_optionmnames':
         rows_per_file = 10**6
     return rows_per_file
-
-
-now = time.localtime()
-[this_year, this_month, today] = [now.tm_year, now.tm_mon, now.tm_mday]
 
 
 def get_ymd_range(min_date, dataset, weekdays=1):
@@ -284,27 +280,22 @@ def update_user_info(numfiles, new_files, fname, dataset, year, month=0, day=0):
     return
 
 
-_get_all = ['crsp.stocknames', 'comp.company', 'comp.g_company']
-# datasets for which the default is to download the entire   #
-# dataset at once                                            #
-
-
 def min_YMD(min_date, dataset):
     """min_YMD(min_date, dataset) finds (year,month,day) at which
     to start wrds_loop when downloading the entirety of a
-    dataset.  It checks user_info to find what files have
+    dataset. It checks user_info to find what files have
     already been downloaded.
 
     return [min_year, min_month, min_day]
     """
-    if dataset in _get_all:
+    if dataset in _GET_ALL:
         return [-1, -1, -1]
 
     if 'last_wrds_download' not in user_info:
         user_info['last_wrds_download'] = {}
     if dataset not in user_info['last_wrds_download']:
-        if dataset in first_dates:
-            user_info['last_wrds_download'][dataset] = first_dates[dataset]
+        if dataset in FIRST_DATES:
+            user_info['last_wrds_download'][dataset] = FIRST_DATES[dataset]
         else:
             user_info['last_wrds_download'][dataset] = 18000000
 
@@ -363,20 +354,20 @@ def min_YMD(min_date, dataset):
             min_year = (min_date-(min_date%10000))/10000
 
     if min_date == 0:
-        if dataset in first_dates.keys():
-            min_day = first_dates[dataset]%100
-            min_month = ((first_dates[dataset]-min_day)%10000)/100
-            min_year = (first_dates[dataset]-100*min_month-min_day)/10000
-        elif any(re.search(x,dataset) for x in first_date_guesses.keys()):
-            key = [x for x in first_date_guesses.keys()
+        if dataset in FIRST_DATES.keys():
+            min_day = FIRST_DATES[dataset]%100
+            min_month = ((FIRST_DATES[dataset]-min_day)%10000)/100
+            min_year = (FIRST_DATES[dataset]-100*min_month-min_day)/10000
+        elif any(re.search(x,dataset) for x in FIRST_DATE_GUESSES.keys()):
+            key = [x for x in FIRST_DATE_GUESSES.keys()
                 if re.search(x,dataset)][0]
-            if dataset in first_date_guesses.keys():
+            if dataset in FIRST_DATE_GUESSES.keys():
                 key = dataset
-                if first_date_guesses[key] == -1:
+                if FIRST_DATE_GUESSES[key] == -1:
                     return [-1, -1, -1]
-            min_day = first_date_guesses[key]%100
-            min_month = ((first_date_guesses[key]-min_day)%10000)/100
-            min_year = (first_date_guesses[key]-100*min_month-min_day)/10000
+            min_day = FIRST_DATE_GUESSES[key]%100
+            min_month = ((FIRST_DATE_GUESSES[key]-min_day)%10000)/100
+            min_year = (FIRST_DATE_GUESSES[key]-100*min_month-min_day)/10000
         else:
             min_day = 0
             min_month = 0
@@ -420,7 +411,7 @@ def setup_wrds_key():
         print('setup_wrds_key() cannot run until wrds_username is '
             +'specified in the user_info.txt file.')
         return [None, None]
-    [ssh, sftp] = sshlib.put_ssh_key(domain=wrds_domain, username=wrds_username)
+    [ssh, sftp] = sshlib.put_ssh_key(domain=WRDS_DOMAIN, username=wrds_username)
     institution = get_wrds_institution(ssh, sftp)
     return [ssh, sftp]
 
@@ -431,7 +422,7 @@ def get_wrds_institution(ssh, sftp):
 
     return institution_path
     """
-    [ssh, sftp] = sshlib.getSSH(ssh, sftp, domain=wrds_domain, username=wrds_username)
+    [ssh, sftp] = sshlib.getSSH(ssh, sftp, domain=WRDS_DOMAIN, username=wrds_username)
     if not sftp:
         return None
     try:
@@ -454,8 +445,3 @@ def get_wrds_institution(ssh, sftp):
                 + 'in the download process.')
     return institution_path
 
-
-autoexec_text = ("*  The library name definitions below are used by SAS;\n"
-    +"*  Assign default libref for WRDS (Wharton Research Data Services);"
-    +"\n\n   %include '!SASROOT/wrdslib.sas' ;\n\n\n"
-    )

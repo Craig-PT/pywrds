@@ -12,8 +12,10 @@ last edit: 2014-08-12
 """
 thisAlgorithmBecomingSkynetCost = 99999999999  # http://xkcd.com/534/
 import datetime, math, os, re, shutil, sys, time
+import paramiko
 
 from . import sshlib, wrdslib
+from _wrds_db_descriptors import AUTOEXEC_TEXT
 
 getSSH = sshlib.getSSH
 _try_get = sshlib._try_get
@@ -22,9 +24,12 @@ _try_exec = sshlib._try_exec
 _try_listdir = sshlib._try_listdir
 
 _dlpath = wrdslib.download_path
-_domain = wrdslib.wrds_domain
+_domain = wrdslib.WRDS_DOMAIN
 _uname = wrdslib.wrds_username
 _institution = wrdslib.wrds_institution
+
+now = time.localtime()
+[this_year, this_month, today] = [now.tm_year, now.tm_mon, now.tm_mday]
 
 
 def get_numlines_from_log(outfile, dname=_dlpath):
@@ -240,10 +245,6 @@ def _get_wrds_chunk(dataset, Y, M=0, D=0, R=[], ssh=[], sftp=[]):
     return [0, ssh, sftp, time.time()-tic]
 
 
-now = time.localtime()
-[this_year, this_month, today] = [now.tm_year, now.tm_mon, now.tm_mday]
-
-
 def wrds_loop(dataset, min_date=0, recombine=1, ssh=None, sftp=None):
     """wrds_loop(dataset, min_date=0, recombine=1, ssh=None, sftp=None)
     executes get_wrds(database_name,...) over all years and
@@ -352,7 +353,7 @@ def _put_sas_file(ssh, sftp, outfile, sas_file):
         #ssh.exec_command('cp autoexec.sas .autoexecsas')
     elif autoexecs == []:
         with open('autoexec.sas', 'wb') as fd:
-            fd.write(wrdslib.autoexec_text)
+            fd.write(AUTOEXEC_TEXT)
         local_path = 'autoexec.sas'
         remote_path = 'autoexec.sas'
         [put_success, ssh, sftp] = _try_put(local_path, remote_path, ssh, sftp, _domain, _uname)
@@ -404,7 +405,7 @@ def _sas_step(ssh, sftp, sas_file, outfile):
                 exit_status = 0
                 sas_completion = 1
 
-            elif log_file in fdict.keys():
+            elif 'log_file' in fdict.keys():
                 exit_status = -1
                 sas_completion = 1
 
@@ -669,38 +670,39 @@ def _get_log_file(ssh, sftp, log_file, sas_file):
     [exec_succes, stdin, stdout, stderr, ssh, sftp] = _try_exec('rm wrds_export*', ssh, sftp, _domain, _uname)
     #[stdin, stdout, stderr] = ssh.exec_command('rm wrds_export*')
 
-    saspath = os.path.join(_dlpath,sas_file)
+    saspath = os.path.join(_dlpath, sas_file)
     if os.path.exists(saspath):
         os.remove(saspath)
     return [success, ssh, sftp]
 
 
 def find_wrds(filename, ssh=None, sftp=None):
-    """find_wrds(dataset_name, ssh=None, sftp=None) will query
-    WRDS for a list of tables available from dataset_name.  For
-    example, setting dataset_name = 'crsp' returns a file with
-    a list of names including "dsf" (daily stock file) and
-    "msf" (monthly stock file).
+    """
+    Query WRDS for a list of tables available from dataset_name.
+    E.g. setting dataset_name = 'crsp' returns a file with a list of names
+    including "dsf" (daily stock file) and "msf" (monthly stock file).
 
-    return [file_list, ssh, sftp]
+    :param filename:
+    :param ssh:
+    :param sftp:
+    :return: [file_list, ssh, sftp]
     """
     tic = time.time()
-    local_sas_file = os.path.join(_dlpath,'wrds_dicts.sas')
-    fd = open(local_sas_file,'wb')
-    fd.write('\tproc sql;\n')
-    fd.write('\tselect memname\n')
-    # optional: "select distinct memname"   #
-    fd.write('\tfrom dictionary.tables\n')
-    fd.write('\twhere libname = "' + filename.upper() +'";\n')
-    fd.write('\tquit;\n')
-    fd.close()
+    local_sas_file = os.path.join(_dlpath, 'wrds_dicts.sas')
+    with open(local_sas_file, 'wb') as fd:
+        fd.write('\tproc sql;\n')
+        fd.write('\tselect memname\n')
+        # optional: "select distinct memname"   #
+        fd.write('\tfrom dictionary.tables\n')
+        fd.write('\twhere libname = "' + filename.upper() +'";\n')
+        fd.write('\tquit;\n')
     [ssh, sftp] = getSSH(ssh, sftp, domain=_domain, username=_uname)
     for fname in ['wrds_dicts.sas', 'wrds_dicts.lst', 'wrds_dicts.log']:
         try:
             sftp.remove(fname)
         except KeyboardInterrupt:
             raise KeyboardInterrupt
-        except:
+        except:  # TODO: Handle case when file doesn't exist explicitly.
             pass
 
     [put_success, ssh, sftp] = _try_put(local_sas_file, 'wrds_dicts.sas', ssh, sftp, _domain, _uname)
@@ -713,8 +715,8 @@ def find_wrds(filename, ssh=None, sftp=None):
         time.sleep(10)
         exit_status = stdout.channel.recv_exit_status()
 
-    local_path = os.path.join(_dlpath,filename+'_dicts.lst')
-    remote_path = ('/home/'+_institution+'/'+_uname+'/wrds_dicts.lst')
+    local_path = os.path.join(_dlpath, filename + '_dicts.lst')
+    remote_path = ('/home/' + _institution + '/' + _uname + '/wrds_dicts.lst')
     [ssh, sftp, fdict] = _try_listdir('.', ssh, sftp, _domain, _uname)
     remote_list = fdict.keys()
     #remote_list = sftp.listdir()
@@ -726,22 +728,20 @@ def find_wrds(filename, ssh=None, sftp=None):
             +'file for input: '+repr(filename))
     try:
         sftp.remove('wrds_dicts.sas')
-    except (IOError,EOFError,paramiko.SSHException):
+    except (IOError, EOFError, paramiko.SSHException):
         pass
     os.remove(local_sas_file)
 
     flist = []
     if os.path.exists(local_path):
-        fd = open(local_path, 'rb')
-        flist = fd.read().splitlines()
-        fd.close()
+        with open(local_path, 'rb') as fd:
+            flist = fd.read().splitlines()
         flist = [x.strip() for x in flist]
         flist = [x for x in flist if x != '']
         dash_line = [x for x in range(len(flist)) if flist[x].strip('- ') == '']
         if dash_line:
             dnum = dash_line[0]
             flist = flist[dnum:]
-
 
     return [flist, ssh, sftp]
 

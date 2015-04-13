@@ -1,8 +1,19 @@
 # Various information about WRDS data base structure.
 
+
+WRDS_DOMAIN = 'wrds.wharton.upenn.edu'
+
+# datasets for which the default is to download the entire data sets at once
+_GET_ALL = ['crsp.stocknames', 'comp.company', 'comp.g_company']
+
+AUTOEXEC_TEXT = ("*  The library name definitions below are used by SAS;\n"
+    +"*  Assign default libref for WRDS (Wharton Research Data Services);"
+    +"\n\n   %include '!SASROOT/wrdslib.sas' ;\n\n\n"
+    )
+
 # first_dates is an estimate of the first date YYYYMMDD on        #
 # which data is available for a given WRDS dataset.               #
-first_dates = {
+FIRST_DATES = {
     "taq.div": 19930000,
     "taq.mast": 19930000,
     "taq.RGSH": 20050100,
@@ -55,7 +66,7 @@ first_dates = {
 
 # first_guesses is a courser estimate for the dataset provider       #
 # crowdsourced improvements to these estimates are welcome.          #
-first_date_guesses = {
+FIRST_DATE_GUESSES = {
     "tfn": 19790000,
     "ibes": 19750000,
     "optionm": 19960000,
