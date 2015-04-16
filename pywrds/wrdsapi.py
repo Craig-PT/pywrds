@@ -192,12 +192,14 @@ class WrdsSession(object):
         return
 
     def min_YMD(self, min_date, dataset):
-        """min_YMD(min_date, dataset) finds (year,month,day) at which
-        to start wrds_loop when downloading the entirety of a
-        dataset. It checks user_info to find what files have
-        already been downloaded.
+        """Finds (year,month,day) at which to start wrds_loop when
+        downloading the entirety of a dataset.
 
-        return [min_year, min_month, min_day]
+        It checks user_info to find what files have already been downloaded.
+
+        :param min_date:
+        :param dataset:
+        :return [min_year, min_month, min_day]:
         """
         if dataset in _GET_ALL:
             return [-1, -1, -1]
@@ -332,9 +334,7 @@ class WrdsSession(object):
         return institution_path
 
     def get_wrds(self, dataset, Y, M=0, D=0, recombine=1):
-        """get_wrds(dataset, Y=0, M=0, D=0, recombine=1)
-
-        Remotely download a file from the WRDS server. For example,
+        """Remotely download a file from the WRDS server. For example,
         the command
 
         x = get_wrds('crsp.msf', 2010, 6)
@@ -358,7 +358,12 @@ class WrdsSession(object):
         better than comma-separated files (csv) because sometimes
         company names have commas e.g. Company Name, Inc.
 
-        return [numfiles, total_rows, ssh, sftp, time_elapsed]
+        :param dataset:
+        :param Y:
+        :param M:
+        :param D:
+        :param recombine:
+        :return [numfiles, total_rows, time_elapsed]:
         """
         tic = time.time()
         keep_going = 1
@@ -379,7 +384,7 @@ class WrdsSession(object):
             if keep_going > 0:
                 numfiles += 1
                 if os.path.exists(os.path.join(self.download_path, outfile)):
-                    log_lines = self.get_numlines_from_log(
+                    log_lines = wrds_util.get_numlines_from_log(
                         outfile, dname=self.download_path)
                     numlines = wrds_util.get_numlines(os.path.join(
                         self.download_path, outfile))
@@ -415,7 +420,7 @@ class WrdsSession(object):
                         if recombine == 1:
                             subfrom = 'rows[0-9]*to[0-9]*\.tsv'
                             recombine_name = re.sub(subfrom, '', outfile)
-                            self.recombine_files(recombine_name,
+                            wrds_util.recombine_files(recombine_name,
                                              dname=self.download_path)
                     else:
                         startrow += rows_per_file
@@ -461,7 +466,7 @@ class WrdsSession(object):
                 remote_size = self._wait_for_sas_file_completion(outfile)
                 [get_success, dt] = self._retrieve_file(outfile, remote_size)
                 local_size \
-                    = wrds_util._wait_for_retrieve_completion(outfile, get_success)
+                    = wrds_util.wait_for_retrieve_completion(outfile, get_success)
                 compare_success = \
                     self._compare_local_to_remote(outfile, remote_size,
                                                   local_size)
@@ -471,69 +476,6 @@ class WrdsSession(object):
         if os.path.exists(checkfile) or exit_status == 0:
             return [1, time.time()-tic]
         return [0, time.time()-tic]
-
-    def get_numlines_from_log(self, outfile, dname=None):
-        """get_numlines_from_log(outfile, dname=_dlpath) reads the
-        SAS log file created during get_wrds to find the number of
-        lines which the wrds server says should be in a downloaded
-        file "outfile".  This number can then be checked against
-        the number actually found in the file.
-
-        return logfile_lines
-        """
-        log_lines = -1
-        if dname is None:
-            dname = self.download_path
-        sasfile = 'wrds_export_' + re.sub('\.tsv$', '.log', outfile)
-        if not os.path.exists(os.path.join(dname, sasfile)):
-            partial_fname = re.sub('[0-9]*rows.*', '', sasfile)
-            sasfile2 = partial_fname+'_'+re.sub(partial_fname, '', sasfile)
-            if os.path.exists(os.path.join(dname, sasfile2)):
-                sasfile = sasfile2
-            all_fname = re.sub('rows', '_allrows', sasfile)
-            if os.path.exists(os.path.join(dname, all_fname)):
-                sasfile = all_fname
-
-        if os.path.exists(os.path.join(dname, sasfile)):
-            with open(os.path.join(dname, sasfile)) as fd:
-                fsize = os.stat(fd.name).st_size
-                while fd.tell() < fsize:
-                    fline = fd.readline()
-                    if re.search('^[0-9]* records created in ', fline):
-                        log_lines = re.split(' records created in ', fline)[0]
-                        log_lines = int(float(log_lines))
-                        break
-
-                    pattern0 = ('NOTE: The data set WORK\.NEW_DATA '
-                        +'has [0-9]* observations')
-                    if re.search(pattern0, fline):
-                        pattern01 = 'NOTE: The data set WORK\.NEW_DATA has '
-                        pattern02 = ' observations'
-                        split_log = re.split(pattern02, fline)[0]
-                        log_lines = re.split(pattern01, split_log)[-1]
-                        log_lines = int(float(log_lines))
-                        break
-
-                    pattern1 = 'NOTE: [0-9]* records were written to the file'
-                    if re.search(pattern1, fline):
-                        split_log = re.split('NOTE: ', fline)[-1]
-                        log_lines = re.split('records', split_log)[0]
-                        log_lines = int(float(log_lines))
-                        break
-
-                    # The numbers given by the pattern below are often     #
-                    # one row lower than the numbers given by the above    #
-                    # patterns, the latter being the desired answer.       #
-                    # This code is kept as an option to re-implement       #
-                    # should their arise cases where none of the other     #
-                    # patterns are found.                                  #
-                    #pattern2 = 'NOTE: There were [0-9]* observations read'
-                    #if re.search(pattern2,fline):
-                    #	split_log = re.split(' observations read',fline)[0]
-                    #	log_lines = re.split('NOTE: There were ',split_log)[-1]
-                    #	log_lines = int(float(log_lines))
-                    #	break
-        return log_lines
 
     def _rename_after_download(self):
         return NotImplementedError
@@ -702,17 +644,16 @@ class WrdsSession(object):
                 elif 'log_file' in fdict.keys():
                     exit_status = -1
                     sas_completion = 1
-
         return exit_status
 
     def _run_sas_command(self, sas_file, outfile):
-        """_run_sas_command(ssh, sftp, sas_file, outfile) executes
-        the sas script sas_file on the wrds server and waits for
+        """Executes the sas script sas_file on the wrds server and waits for
         an exit status to be returned.
 
-        return exit_status
+        :param sas_file:
+        :param outfile:
+        :return exit_status:
         """
-
         sas_command = ('sas -noterminal '+ sas_file)
         [stdin,stdout,stderr] = self.ssh.exec_command(sas_command)
         [exit_status, exit_status2, waited, maxwait] = [-1, -1, 0, 1200]
@@ -727,11 +668,13 @@ class WrdsSession(object):
         return exit_status
 
     def _handle_sas_failure(self, exit_status, outfile, log_file):
-        """_handle_sas_failure(exit_status, outfile, log_file)
-        checks the sas exit status returned by the wrds server and
-        responds appropriately to any statuses other than success.
+        """Checks sas exit status returned by wrds server and responds
+        appropriately to any statuses other than success.
 
-        return exit_status
+        :param exit_status:
+        :param outfile:
+        :param log_file:
+        :return exit_status:
         """
         real_failure = 1
         [fdict] = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
@@ -767,17 +710,15 @@ class WrdsSession(object):
         return exit_status
 
     def _wait_for_sas_file_completion(self, outfile):
-        """_wait_for_sas_file_completion(ssh, sftp, outfile) checks the size
-        of the file outfile produced on the wrds server within get_wrds.
+        """Checks the size of the file outfile produced on the wrds server
+        within get_wrds.
+
         Until it observes two successive measurements with the same file
         size, it infers that the sas script is still writing the file.
 
-        return remote_size
+        :param outfile:
+        :return remote_size:
         """
-        ## add getSSH for the sftp.stat?           ##
-        ## i think this may be perfunctory in      ##
-        ## the case where exit_status = 0          ##
-        ## indicates the process is done, not sure ##
         [measure1, measure2, mtime, waited2, maxwait2] = [0, 1, time.time(), 0, 1200]
         while self.sftp and ((waited2 < maxwait2)
             and (measure1 != measure2 or (time.time() - mtime <= 10))):
@@ -793,22 +734,22 @@ class WrdsSession(object):
                 # [ssh, sftp] = getSSH(ssh, sftp, domain=WRDS_DOMAIN,
                 # username=_uname)
 
-
         if waited2 >= maxwait2:
             print(['get_wrds stopped waiting for SAS completion at step 2',
                 measure1, measure2, mtime])
             measure1 = 0
-            ## should i remove the file in this case?  ##
+            # should i remove the file in this case?
         remote_size = measure1
 
         return remote_size
 
     def _retrieve_file(self, outfile, remote_size):
-        """_retrieve_file(ssh, sftp, outfile, remote_size) retrieves the
-        file outfile produced on the wrds server in get_wrds, including
-        correct handling of several common network errors.
+        """Retrieves the outfile produced on the wrds server in
+        get_wrds, including correct handling of several common network errors.
 
-        return retrieve_success_boolean
+        :param outfile:
+        :param remote_size:
+        :return get_success:
         """
         tic = time.time()
         if remote_size == 0:
@@ -842,12 +783,14 @@ class WrdsSession(object):
         return [get_success, time.time()-tic]
 
     def _compare_local_to_remote(self, outfile, remote_size, local_size):
-        """_compare_local_to_remote(outfile, remote_size, local_size)
-        compares the size of the file "outfile" downloaded (local_size) to
+        """Compares the size of the file "outfile" downloaded (local_size) to
         the size of the file as listed on the server (remote_size) to
         check that the download completed properly.
 
-        return compare_success_boolean
+        :param outfile:
+        :param remote_size:
+        :param local_size:
+        :return compare_success (bool):
         """
         compare_success = 0
         write_file = '.' + outfile + '--writing'
@@ -874,17 +817,17 @@ class WrdsSession(object):
         return compare_success
 
     def _get_log_file(self, log_file, sas_file):
-        """_get_log_file(log_file, sas_file)
+        """Attempts to retrieve SAS log file generated by _get_wrds_chunk from
+        the WRDS server.
 
-        _get_log_file(log_file, sas_file) attempts to retrieve the SAS
-        log file generated by _get_wrds_chunk from the WRDS server.
+        Also removes the sas_file from the local directory, though strictly
+        speaking this belongs in a separate function.
 
-        _get_log_file also removes the sas_file from the local directory,
-        though strictly speaking this belongs in a separate function.
-
-        return success_boolean
+        :param log_file:
+        :param sas_file:
+        :return success (bool):
         """
-        success = 1
+        success = 0
         remote_path = ('/home/' + self.wrds_institution + '/' +
                        self.wrds_username + '/' + log_file)
         local_path = os.path.join(self.download_path, log_file)
@@ -902,8 +845,8 @@ class WrdsSession(object):
         return [success]
 
     def find_wrds(self, filename):
-        """
-        Query WRDS for a list of tables available from dataset_name.
+        """Query WRDS for a list of tables available from dataset_name.
+
         E.g. setting dataset_name = 'crsp' returns a file with a list of names
         including "dsf" (daily stock file) and "msf" (monthly stock file).
 
@@ -970,148 +913,17 @@ class WrdsSession(object):
 
         return [flist]
 
-    def _recombine_ready(self, fname, dname=None, suppress=0):
-        """_recombine_ready(fname, dname=None, suppress=0)
-        checks files downloaded by get_wrds to see if the loop
-        has completed successfully and the files are ready
-        to be be recombined.
-
-        If dname==None, the directory defaults to os.getcwd().
-
-        return is_ready_boolean
-        """
-        if not dname:
-            dname = os.getcwd()
-        isready = 1
-        fname0 = re.sub('rows[0-9][0-9]*to[0-9][0-9]*\.tsv', '', fname)
-
-        if os.path.exists(os.path.join(dname, fname + '.tsv')):
-            isready = 0
-
-        rows_per_file = wrds_util.rows_per_file_adjusted(fname0)
-        flist0 = os.listdir(dname)
-        flist0 = [x for x in flist0 if x.endswith('.tsv')]
-        flist0 = [x for x in flist0 if re.search(fname0, x)]
-        fdict = {x: x.split('rows')[-1] for x in flist0}
-        fdict = {x: re.split('_?to_?',fdict[x])[0] for x in fdict}
-        fdict = {x: float(fdict[x]) for x in fdict if fdict[x].isdigit()}
-        flist = [[fdict[x], x] for x in fdict]
-
-        if isready and flist == []:
-            isready = 0
-            if suppress == 0:
-                print('recombine_ready: No such files found: ' + fname)
-
-        numlist = [x[0] for x in sorted(flist)]
-        missing_nums = [x for x in numlist if x != 1]
-        missing_nums = [x for x in missing_nums if x-rows_per_file not in numlist]
-
-        if isready and missing_nums != []:
-            isready = 0
-            if suppress == 0:
-                print('recombine_ready: ' + fname
-                    + ' missing_nums ' + repr(missing_nums+numlist))
-
-        end_nums = [re.sub('\.tsv$', '', x[1]) for x in flist]
-        end_nums = [re.split('to', x)[-1] for x in end_nums]
-        end_nums = [float(x) for x in end_nums]
-
-        if isready and end_nums != [] and max(end_nums)%rows_per_file == 0:
-            max_num = int(max(end_nums))
-            flist2 = [x[1] for x in flist if x[1].endswith(repr(max_num)
-                                                           + '.tsv')]
-            if len(flist2) == 1:
-                outfile = flist2[0]
-                numlines = wrds_util.get_numlines(os.path.join(dname, outfile))
-                log_numlines = self.get_numlines_from_log(outfile, dname)
-                if numlines != log_numlines:
-                    isready = 0
-                    print('recombine_ready: '+outfile
-                        +' numlines!=log_numlines: '
-                        +repr([numlines, log_numlines]))
-            else:
-                isready = 0
-                if suppress == 0:
-                    print('recombine_ready: ' + fname + ' appears incomplete: '
-                          + repr(max(end_nums)))
-        return isready
-
-    def recombine_files(self, fname, dname=None, suppress=0):
-        """recombine_files(fname, dname=None, suppress=0)
-        reads the files downloaded by get_wrds and combines them
-        back into the single file of interest.
-
-        If dname==None, the directory defaults to os.getcwd().
-
-        return num_combined_files
-        """
-        if not dname:
-            dname = os.getcwd()
-        combined_files = 0
-        if not self._recombine_ready(fname, dname, suppress):
-            return combined_files
-
-        fname0 = re.sub('rows[0-9][0-9]*to[0-9][0-9]*\.tsv', '', fname)
-        rows_per_file = wrds_util.rows_per_file_adjusted(fname0)
-
-        flist0 = [x for x in os.listdir(dname) if re.search(fname0, x)]
-        flist0 = [x for x in flist0 if x.endswith('.tsv')]
-        fdict = {x: x.split('rows')[-1] for x in flist0}
-        fdict = {x: re.split('_?to_?',fdict[x])[0] for x in fdict}
-        fdict = {x: float(fdict[x]) for x in fdict if fdict[x].isdigit()}
-        flist = [[fdict[x], x] for x in fdict]
-
-        flist = [x[1] for x in sorted(flist)]
-        fd = open(os.path.join(dname, flist[-1]), 'rb')
-        fsize = os.stat(fd.name).st_size
-        nlines = 0
-        while fd.tell() > fsize:
-            fd.readline()
-            nlines += 1
-        fd.close()
-        if nlines >= rows_per_file:
-            print([fname, flist[-1],
-            'len(flines)=' + repr(nlines),
-            'should_be=' + repr(rows_per_file)])
-            return combined_files
-
-        with open(os.path.join(dname, fname0+'.tsv'), 'wb') as fd:
-            headers = []
-            found_problem = 0
-            for fname1 in flist:
-                fd1 = open(os.path.join(dname, fname1), 'rb')
-                fsize1 = os.stat(fd1.name).st_size
-                headers1 = fd1.readline().strip('\r\n')
-                if headers == []:
-                    headers = headers1
-                    fd.write(headers1 + '\n')
-                if headers1 != headers:
-                    print('Problem with header matching:' + fname1)
-                    found_problem = 1
-                if found_problem == 0:
-                    try:
-                        while fd1.tell() < fsize1:
-                            fd.write(fd1.readline().strip('\r\n') + '\n')
-                        fd1.close()
-                    except KeyboardInterrupt:
-                        fd1.close()
-                        fd.close()
-                        os.remove(fd.name)
-                        raise KeyboardInterrupt
-                    combined_files += 1
-
-        if found_problem == 0:
-            for fname1 in flist:
-                os.remove(os.path.join(dname, fname1))
-        return combined_files
-
     def _try_put(self, local_path, remote_path, domain, username, ports=[22]):
-        """_try_put(local_path, remote_path, domain, username, ports)
+        """Transfers file from local_path to remote_path using the sftp client.
 
-        Trys to sftp the file at local_path on the server at
-        remote_path, reinitiating the ssh connection if needbe.
+        TODO: Reinitiating the ssh connection if needbe.
 
-        return [ssh, sftp, success]
+        :param local_path:
+        :param remote_path:
+        :param domain:
+        :param username:
+        :param ports:
+        :return success:
         """
         [success, numtrys, maxtrys] = [0, 0, 3]
         local_stat = os.stat(local_path)
@@ -1137,17 +949,21 @@ class WrdsSession(object):
         return [success]
 
     def _try_get(self, domain, username, remote_path, local_path, ports=[22]):
-        """_try_get(domain, username, remote_path, local_path, ports=[22])
+        """Trys three times to download file from remote_path to local_path
+        using the sftp client.
 
-        Trys three times to download a file from the remote ssh server
-        from remote_path to local_path.  If a connection error occurs, it
-        is re-established.
+        TODO: If a connection error occurs, it is re-established.
 
-        _try_get does *not* check that the remote file exists, that
-        the local_path is not already in use, or that there is enough
-        space free on the local disk to complete the download.
+        Does *not* check that the remote file exists, that the local_path is
+        not already in use, or that there is enough space free on the local
+        disk to complete the download.
 
-        return [success_boolean, time_elapsed]
+        :param domain:
+        :param username:
+        :param remote_path:
+        :param local_path:
+        :param ports:
+        :return [success (bool), time_elapsed]:
         """
         tic = time.time()
         [success, numtrys, maxtrys] = [0, 0, 3]
@@ -1189,21 +1005,24 @@ class WrdsSession(object):
                 # TODO: Handle sftp error
                 # [ssh, sftp] = getSSH(ssh, sftp, domain=domain,
                 # username=username)
-                numtrys +=1
+                numtrys += 1
 
         return [success, stdin, stdout, stderr]
 
     def _try_listdir(self, remote_dir, domain, username, ports=[22]):
-        """_try_listdir(remote_dir, domain, username, ports=[22])
+        """Tries three times to get a a list of files and their attributes
+        from the directory remote_dir on the remote server.
 
-        Trys three times to get a a list of files and their attributes
-        from the directory remote_dir on the remote server,
-        reinitiating the ssh connection if needbe.
+        TODO: reinitiating the ssh connection if needbe.
 
         Creates a dictionary fdict = {filename: [attributes]} across
         the files in the remote directory.
 
-        returns [ssh, sftp, fdict]
+        :param remote_dir:
+        :param domain:
+        :param username:
+        :param ports:
+        :return [fdict]:
         """
         fdict = {}
         remote_list = []
