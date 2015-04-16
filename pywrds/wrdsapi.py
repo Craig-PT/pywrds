@@ -14,6 +14,7 @@ from _wrds_db_descriptors import WRDS_DOMAIN, _GET_ALL, FIRST_DATES, \
 
 from pywrds import sshlib
 from pywrds import utility as wrds_util
+from . import sas_query
 
 
 class WrdsSession(object):
@@ -89,7 +90,7 @@ class WrdsSession(object):
 
         return ymdrange
         """
-        [min_year, min_month, min_day] = self.min_YMD(min_date, dataset)
+        [min_year, min_month, min_day] = self.min_ymd(min_date, dataset)
 
         ymdrange = []
         years = xrange(min_year, self.now.tm_year+1)
@@ -112,65 +113,6 @@ class WrdsSession(object):
         ymdrange = [x for x in ymdrange if x >= [min_year, min_month, min_day]]
         return ymdrange
 
-    def wrds_sas_script(self, dataset, year, month=0, day=0, rows=[]):
-        """wrds_sas_script(dataset, year, month=0, day=0, rows=[])
-        generates a .sas file which is executed on the WRDS server
-        to produce the desired dataset.
-
-        return [sas_file, output_file, dataset]
-        """
-        [Y, M, D, R] = [year, month, day, rows]
-        ystr = '' + ('_' + str(Y))*(Y != 'all')
-        mstr = '' + (M != 0)*('0'*(M < 10) + str(M))
-        dstr = '' + (D != 0)*('0'*(D < 10) + str(D))
-        ymdstr = ystr + mstr + dstr
-        sas_file = 'wrds_export_' + re.sub('\.', '_', dataset)
-
-        if R != []:
-            rowstr = 'rows' + str(R[0]) + 'to' + str(R[1])
-            sas_file = sas_file + ymdstr + rowstr
-        else:
-            sas_file = sas_file + ymdstr
-        sas_file = sas_file + '.sas'
-
-        [dataset, output_file] = wrds_util.fix_input_name(dataset, Y, M, D, R)
-        with open(os.path.join(self.download_path, sas_file), 'wb') as fd:
-            fd.write('DATA new_data;\n')
-            fd.write('\tSET ' + dataset)
-            if Y != 'all':
-                where_query = ' (where = ('
-                year_query = ('(year(' + wrds_util.wrds_datevar(dataset) + ')'
-                    + ' between ' + str(Y) + ' and ' + str(Y) + ')')
-                where_query = where_query + year_query
-
-                if M != 0:
-                    month_query = (' and (month(' + wrds_util.wrds_datevar(dataset)
-                        +') between '+str(M)+' and '+str(M)+')')
-                    where_query = where_query + month_query
-
-                if D != 0:
-                    day_query = (' and (day(' + wrds_util.wrds_datevar(dataset)
-                        +') between '+str(D)+' and '+str(D)+')')
-                    where_query = where_query+day_query
-
-                where_query = where_query+'));\n'
-                fd.write(where_query)
-            else:
-                fd.write(';\n')
-
-            if R != []:
-                rowquery = ('\tIF ('+str(R[0])+'<= _N_<= '+str(R[1])+');\n')
-                fd.write(rowquery)
-
-            fd.write('\n')
-            fd.write('proc export data = new_data\n')
-            fd.write(('\toutfile = "~/'+output_file+'" \n'
-                        +'\tdbms = tab \n'
-                        +'\treplace; \n'
-                        +'\tputnames = yes; \n'
-                        +'run; \n'))
-        return [sas_file, output_file, dataset]
-
     def update_user_info(self, numfiles, new_files, fname, dataset, year,
                          month=0, day=0):
         """update_user_info(numfiles, new_files, fname, dataset, year, month=0, day=0)
@@ -191,7 +133,7 @@ class WrdsSession(object):
             print ('Could not retrieve: ' + fname)
         return
 
-    def min_YMD(self, min_date, dataset):
+    def min_ymd(self, min_date, dataset):
         """Finds (year,month,day) at which to start wrds_loop when
         downloading the entirety of a dataset.
 
@@ -446,7 +388,7 @@ class WrdsSession(object):
         """
         tic = time.time()
         [sas_file, outfile, dataset] = \
-            self.wrds_sas_script(dataset, Y, M, D, R)
+            sas_query.wrds_sas_script(self.download_path, dataset, Y, M, D, R)
         log_file = re.sub('\.sas$', '.log', sas_file)
 
         put_success = self._put_sas_file(outfile, sas_file)
@@ -492,7 +434,7 @@ class WrdsSession(object):
         """
         tic = time.time()
         [numfiles, numlines, numlines0] = [0, 0, 0]
-        [min_year, min_month, min_day] = self.min_YMD(min_date, dataset)
+        [min_year, min_month, min_day] = self.min_ymd(min_date, dataset)
         flist = os.listdir(self.download_path)
 
         if [min_year, min_month, min_day] == [-1, -1, -1]:

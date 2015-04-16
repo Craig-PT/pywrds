@@ -2,7 +2,7 @@ __author__ = 'cpt'
 """
 Utility functions for WRDS manipulations.
 
-Generally, taking outside of wrdsapi the static methods.
+Generally, taking outside of wrdsapi any static methods.
 """
 
 import re
