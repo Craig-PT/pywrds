@@ -82,13 +82,17 @@ class WrdsSession(object):
             raise Warning("Need to implement login without key authentication")
 
     def get_ymd_range(self, min_date, dataset, weekdays=1):
-        """get_ymd_range(min_date, dataset, weekdays=1) gets a list of
-        tuples [year, month, date] over which to iterate in wrds_loop.  Some
-        datasets include very large files and need to be queried
-        at a monthly or daily frequency to prevent giant files from
-        causing problems on the server.
+        """Gets a list of tuples [year, month, date] over which to iterate in
+        wrds_loop.
 
-        return ymdrange
+        Some datasets include very large files and need to be queried at a
+        monthly or daily frequency to prevent giant files from causing
+        problems on the server.
+
+        :param min_date:
+        :param dataset:
+        :param weekdays:
+        :return ymdrange:
         """
         [min_year, min_month, min_day] = self.min_ymd(min_date, dataset)
 
@@ -248,10 +252,10 @@ class WrdsSession(object):
         return [self.ssh, self.sftp]
 
     def get_wrds_institution(self):
-        """get_wrds_institution(ssh, sftp) gets the institution associated
-        with the user's account on the wrds server.
+        """Returns the institution associated with the user's account on the
+        wrds server.
 
-        return institution_path
+        :return institution_path:
         """
         if not self.sftp:
             return None
@@ -262,7 +266,7 @@ class WrdsSession(object):
             return None
         institution_path = re.sub('/home/', '', wrds_path).split('/')[0]
         if self.wrds_institution != institution_path:
-            if self.wrds_institution == []:
+            if not self.wrds_institution:
                 self.wrds_institution = institution_path
                 self.user_info['wrds_institution'] = self.wrds_institution
                 with open(self.user_info_filename, 'wb') as fd:
@@ -274,6 +278,75 @@ class WrdsSession(object):
                     + 'This mismatch may cause errors '
                     + 'in the download process.')
         return institution_path
+
+    def find_wrds(self, filename):
+        """Query WRDS for a list of tables available from dataset_name.
+
+        E.g. setting dataset_name = 'crsp' returns a file with a list of names
+        including "dsf" (daily stock file) and "msf" (monthly stock file).
+
+        :param filename:
+        :return: [file_list, ssh, sftp]
+        """
+        tic = time.time()
+        local_sas_file = os.path.join(self.download_path, 'wrds_dicts.sas')
+        with open(local_sas_file, 'wb') as fd:
+            fd.write('\tproc sql;\n')
+            fd.write('\tselect memname\n')
+            # optional: "select distinct memname"   #
+            fd.write('\tfrom dictionary.tables\n')
+            fd.write('\twhere libname = "' + filename.upper() + '";\n')
+            fd.write('\tquit;\n')
+        for fname in ['wrds_dicts.sas', 'wrds_dicts.lst', 'wrds_dicts.log']:
+            try:
+                self.sftp.remove(fname)
+            except KeyboardInterrupt:
+                raise KeyboardInterrupt
+            except:  # TODO: Handle case when file doesn't exist explicitly.
+                pass
+
+        [put_success] = self._try_put(local_sas_file, 'wrds_dicts.sas',
+                                      WRDS_DOMAIN, self.wrds_username)
+
+        sas_command = 'sas -noterminal wrds_dicts.sas'
+
+        [stdin, stdout, stderr] = self.ssh.exec_command(sas_command)
+        exit_status = -1
+        while exit_status == -1:
+            time.sleep(10)
+            exit_status = stdout.channel.recv_exit_status()
+
+        local_path = os.path.join(self.download_path, filename + '_dicts.lst')
+        remote_path = ('/home/' + self.wrds_institution + '/' +
+                       self.wrds_username + '/wrds_dicts.lst')
+        [fdict] = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
+        remote_list = fdict.keys()
+
+        if exit_status in [0, 1] and 'wrds_dicts.lst' in remote_list:
+            [get_success, dt] = \
+                self._try_get(local_path=local_path, remote_path=remote_path,
+                          domain=WRDS_DOMAIN, username=self.wrds_username)
+        else:
+            print('find_wrds did not generate a wrds_dicts.lst '
+                + 'file for input: ' + repr(filename))
+        try:
+            self.sftp.remove('wrds_dicts.sas')
+        except (IOError, EOFError, paramiko.SSHException):
+            pass
+        os.remove(local_sas_file)
+
+        flist = []
+        if os.path.exists(local_path):
+            with open(local_path, 'rb') as fd:
+                flist = fd.read().splitlines()
+            flist = [x.strip() for x in flist]
+            flist = [x for x in flist if x != '']
+            dash_line = [x for x in range(len(flist)) if flist[x].strip('- ') == '']
+            if dash_line:
+                dnum = dash_line[0]
+                flist = flist[dnum:]
+
+        return [flist]
 
     def get_wrds(self, dataset, Y, M=0, D=0, recombine=1):
         """Remotely download a file from the WRDS server. For example,
@@ -374,17 +447,22 @@ class WrdsSession(object):
         return [numfiles, total_rows, time.time()-tic]
 
     def _get_wrds_chunk(self, dataset, Y, M=0, D=0, R=[]):
-        """_get_wrds_chunk(dataset, Y, M=0, D=0, rows=[])
+        """Helper fn to manage server data storage limits.
 
-        Some files requested by get_wrds are too large to fit
-        in a user's allotted space on the wrds server.  For these
-        files, get_wrds will split the request into multiple
-        smaller requests to retrieve multiple files and run each
-        of them through _get_wrds_chunk.  If the argument
-        "recombine" is set to its default value of 1, these files
-        will be recombined once the loop completes.
+        Some files requested by get_wrds are too large to fit in a user's
+        allotted space on the wrds server.  For these files, get_wrds will
+        split the request into multiple smaller requests to retrieve multiple
+        files and run each of them through _get_wrds_chunk.
 
-        return [success, ssh, sftp, time_elapsed]
+        If the argument "recombine" is set to its default value of 1,
+        these files will be recombined once the loop completes.
+
+        :param dataset:
+        :param Y:
+        :param M:
+        :param D:
+        :param R:
+        :return [success, time_elapsed]:
         """
         tic = time.time()
         [sas_file, outfile, dataset] = \
@@ -423,14 +501,15 @@ class WrdsSession(object):
         return NotImplementedError
 
     def wrds_loop(self, dataset, min_date=0, recombine=1):
-        """wrds_loop(dataset, min_date=0, recombine=1)
-        executes get_wrds(database_name,...) over all years and
-        months for which data is available for the specified
-        data set.  File separated into chunks for downloading
-        will be recombined into their original forms if
-        recombine is set to its default value 1.
+        """Executes get_wrds(database_name,...) over all years and months for
+        which data is available for the specified data set.  File separated
+        into chunks for downloading will be recombined into their original
+        forms if recombine is set to its default value 1.
 
-        return [numfiles, time_elapsed]
+        :param dataset:
+        :param min_date:
+        :param recombine:
+        :return [numfiles, time_elapsed]:
         """
         tic = time.time()
         [numfiles, numlines, numlines0] = [0, 0, 0]
@@ -461,18 +540,19 @@ class WrdsSession(object):
         return [numfiles, time.time()-tic]
 
     def _put_sas_file(self, outfile, sas_file):
-        """_put_sas_file(outfile, sas_file) puts the sas_file
-        in the appropriate directory on the wrds server, handling
-        several common errors that occur during this process.
+        """puts the sas_file in the appropriate directory on the wrds server,
+        handling several common errors that occur during this process.
 
-        It removes old files which may interfere with the new
-        files and checks that there is enough space in the user
-        account on the wrds server to run the sas command.
+        It removes old files which may interfere with the new files and
+        checks that there is enough space in the user account on the wrds
+        server to run the sas command.
 
-        Finally it checks that the necessary autoexec.sas files
-        are present in the directory.
+        Finally it checks that the necessary autoexec.sas files are present
+        in the directory.
 
-        return put_success_boolean
+        :param outfile:
+        :param sas_file:
+        :return put_success (bool):
         """
         [fdict] = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
         initial_files = fdict.values()
@@ -555,11 +635,13 @@ class WrdsSession(object):
         return put_success
 
     def _sas_step(self, sas_file, outfile):
-        """_sas_step(ssh, sftp, sas_file, outfile) wraps the running of
-        the sas command (_run_sas_command) with retrying and
-        re-initializing the network connection if necessary.
+        """wraps the running of the sas command (_run_sas_command).
 
-        return exit_status
+         TODO: Retrying and re-initializing the network connection if necessary.
+
+        :param sas_file:
+        :param outfile:
+        :return exit_status:
         """
         [sas_completion, num_sas_trys, max_sas_trys] = [0, 0, 3]
         while sas_completion == 0 and num_sas_trys < max_sas_trys:
@@ -697,19 +779,19 @@ class WrdsSession(object):
         if remote_size == 0:
             return [0, time.time()-tic]
         if remote_size >= 10**7:
-            # skip messages for small files        #
-            print('starting retrieve_file: '+outfile
-                +' ('+repr(remote_size)+') bytes')
+            # skip messages for small files
+            print('starting retrieve_file: ' + outfile + ' (' + repr(
+                remote_size) + ') bytes')
 
         vfs = os.statvfs(self.download_path)
-        free_local_space = vfs.f_bavail*vfs.f_frsize
+        free_local_space = vfs.f_bavail * vfs.f_frsize
+
         if remote_size > free_local_space:
-            print('get_wrds cannot download file '+outfile+', only '
+            print('get_wrds cannot download file ' + outfile + ', only '
             +str(free_local_space)+' bytes available on drive for '
             +str(remote_size)+'-byte file.')
             return [0, time.time()-tic]
 
-        [get_success, numtrys, maxtrys] = [0, 0, 3]
         remote_path = ('/home/' + self.wrds_institution + '/' +
                        self.wrds_username + '/' + outfile)
         write_file = '.' + outfile + '--writing'
@@ -785,75 +867,6 @@ class WrdsSession(object):
         if os.path.exists(saspath):
             os.remove(saspath)
         return [success]
-
-    def find_wrds(self, filename):
-        """Query WRDS for a list of tables available from dataset_name.
-
-        E.g. setting dataset_name = 'crsp' returns a file with a list of names
-        including "dsf" (daily stock file) and "msf" (monthly stock file).
-
-        :param filename:
-        :return: [file_list, ssh, sftp]
-        """
-        tic = time.time()
-        local_sas_file = os.path.join(self.download_path, 'wrds_dicts.sas')
-        with open(local_sas_file, 'wb') as fd:
-            fd.write('\tproc sql;\n')
-            fd.write('\tselect memname\n')
-            # optional: "select distinct memname"   #
-            fd.write('\tfrom dictionary.tables\n')
-            fd.write('\twhere libname = "' + filename.upper() + '";\n')
-            fd.write('\tquit;\n')
-        for fname in ['wrds_dicts.sas', 'wrds_dicts.lst', 'wrds_dicts.log']:
-            try:
-                self.sftp.remove(fname)
-            except KeyboardInterrupt:
-                raise KeyboardInterrupt
-            except:  # TODO: Handle case when file doesn't exist explicitly.
-                pass
-
-        [put_success] = self._try_put(local_sas_file, 'wrds_dicts.sas',
-                                      WRDS_DOMAIN, self.wrds_username)
-
-        sas_command = 'sas -noterminal wrds_dicts.sas'
-
-        [stdin, stdout, stderr] = self.ssh.exec_command(sas_command)
-        exit_status = -1
-        while exit_status == -1:
-            time.sleep(10)
-            exit_status = stdout.channel.recv_exit_status()
-
-        local_path = os.path.join(self.download_path, filename + '_dicts.lst')
-        remote_path = ('/home/' + self.wrds_institution + '/' +
-                       self.wrds_username + '/wrds_dicts.lst')
-        [fdict] = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
-        remote_list = fdict.keys()
-
-        if exit_status in [0, 1] and 'wrds_dicts.lst' in remote_list:
-            [get_success, dt] = \
-                self._try_get(domain=WRDS_DOMAIN, username=self.wrds_username,
-                          remote_path=remote_path, local_path=local_path)
-        else:
-            print('find_wrds did not generate a wrds_dicts.lst '
-                + 'file for input: ' + repr(filename))
-        try:
-            self.sftp.remove('wrds_dicts.sas')
-        except (IOError, EOFError, paramiko.SSHException):
-            pass
-        os.remove(local_sas_file)
-
-        flist = []
-        if os.path.exists(local_path):
-            with open(local_path, 'rb') as fd:
-                flist = fd.read().splitlines()
-            flist = [x.strip() for x in flist]
-            flist = [x for x in flist if x != '']
-            dash_line = [x for x in range(len(flist)) if flist[x].strip('- ') == '']
-            if dash_line:
-                dnum = dash_line[0]
-                flist = flist[dnum:]
-
-        return [flist]
 
     def _try_put(self, local_path, remote_path, domain, username, ports=[22]):
         """Transfers file from local_path to remote_path using the sftp client.

@@ -61,8 +61,9 @@ def getSSH(ssh, sftp, domain, username, ports=[22]):
                 break
             except paramiko.AuthenticationException:
                 default_logger.info('key-based authentication to '
-                    +'server '+str(domain) + ' failed, attempting '
-                    +'password-based authentication')
+                    +'server '+str(domain) + ' failed, with user ' + username +
+                                    ', and institution ' + domain + ', '
+                                    'attempting password-based authentication')
                 try:
                     prompt = repr(domain)+' password: '
                     ssh.connect(domain,
