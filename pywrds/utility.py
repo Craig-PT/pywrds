@@ -97,8 +97,8 @@ def fix_input_name(dataset, year, month, day, rows=[]):
     """
     [Y, M, D, R] = [year, month, day, rows]
     if year != 'all':
-        ystr = '_'*(dataset[-1].isdigit()) + str(Y)
-        mstr = '' + (M != 0)*('0'*(month < 10) + str(M))
+        ystr = '_' * (dataset[-1].isdigit()) + str(Y)
+        mstr = '' + (M != 0) * ('0' * (month < 10) + str(M))
         dstr = (D != 0)*('0'*(D < 10) + str(D))
         ymdstr = ystr + mstr + dstr + '.tsv'
         output_file = re.sub('\.', '_', dataset) + ymdstr
@@ -125,7 +125,7 @@ def fix_input_name(dataset, year, month, day, rows=[]):
         ymdstr = str(100*Y + M)[2:]
         dataset = 'taq.RGSH' + ymdstr
 
-    if R != []:
+    if R:
         rowstr = 'rows' + str(R[0]) + 'to' + str(R[1]) + '.tsv'
         output_file = re.sub('.tsv$', '', output_file) + rowstr
 

@@ -305,8 +305,7 @@ class WrdsSession(object):
             except:  # TODO: Handle case when file doesn't exist explicitly.
                 pass
 
-        [put_success] = self._try_put(local_sas_file, 'wrds_dicts.sas',
-                                      WRDS_DOMAIN, self.wrds_username)
+        [put_success] = self._try_put(local_sas_file, 'wrds_dicts.sas')
 
         sas_command = 'sas -noterminal wrds_dicts.sas'
 
@@ -319,13 +318,11 @@ class WrdsSession(object):
         local_path = os.path.join(self.download_path, filename + '_dicts.lst')
         remote_path = ('/home/' + self.wrds_institution + '/' +
                        self.wrds_username + '/wrds_dicts.lst')
-        fdict = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
+        fdict = self._try_listdir('.')
         remote_list = fdict.keys()
 
         if exit_status in [0, 1] and 'wrds_dicts.lst' in remote_list:
-            [get_success, dt] = \
-                self._try_get(local_path=local_path, remote_path=remote_path,
-                          domain=WRDS_DOMAIN, username=self.wrds_username)
+            [get_success, dt] = self._try_get(local_path, remote_path)
         else:
             print('find_wrds did not generate a wrds_dicts.lst '
                 + 'file for input: ' + repr(filename))
@@ -474,7 +471,7 @@ class WrdsSession(object):
         exit_status = self._handle_sas_failure(exit_status, outfile, log_file)
 
         if exit_status in [0, 1]:
-            fdict = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
+            fdict = self._try_listdir('.')
             file_list = fdict.keys()
             if outfile not in file_list:
                 print('exit_status in [0, 1] suggests SAS succeeded, '
@@ -543,20 +540,18 @@ class WrdsSession(object):
         """puts the sas_file in the appropriate directory on the wrds server,
         handling several common errors that occur during this process.
 
-        It removes old files which may interfere with the new files and
-        checks that there is enough space in the user account on the wrds
-        server to run the sas command.
-
-        Finally it checks that the necessary autoexec.sas files are present
-        in the directory.
+        1. Removes old files which may interfere with the new files.
+        2. Checks enough space in user account on wrds server to run sas_file.
+        3. Checks necessary autoexec.sas files are present in the directory.
 
         :param outfile:
         :param sas_file:
         :return put_success (bool):
         """
-        fdict = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
+        fdict = self._try_listdir('.')
         initial_files = fdict.values()
 
+        # 1. Removes old files which may interfere with the new files.
         old_export_files = [x for x in initial_files
             if re.search('wrds_export.*sas$', x.filename)
             or re.search('wrds_export.*log$', x.filename)
@@ -578,9 +573,9 @@ class WrdsSession(object):
             except (IOError, EOFError, paramiko.SSHException):
                 pass
             initial_files.remove(old_file)
-            ## see if the file is something you                ##
-            ## actually want before deleting it out of hand    ##
+            # TODO: see if the file is something want before deleting it.
 
+        # 2. Check available space on remote.
         file_sizes = [initial_file.st_size for initial_file in initial_files]
         total_file_size = sum(file_sizes)
         if total_file_size > WRDS_USER_QUOTA:
@@ -591,47 +586,33 @@ class WrdsSession(object):
                   'present are: ')
             print([x.filename for x in initial_files])
 
+        # 3. Check necessary autoexec.sas files are present on remote.
         auto_names = ['autoexec.sas', '.autoexecsas']
         autoexecs = [x.filename for x in initial_files if x.filename in auto_names]
         if autoexecs == ['.autoexecsas']:
-            # if 'autoexec.sas' is not present, the sas program will fail   #
-            # a backup copy is stored by default in .autoexecsas            #
+            # if 'autoexec.sas' is not present, the sas program will fail a
+            # backup copy is stored by default in .autoexecsas
             ssh_command = 'cp .autoexecsas autoexec.sas'
-            [exec_succes, stdin, stdout, stderr] = \
-                self._try_exec(ssh_command, WRDS_DOMAIN, self.wrds_username)
+            [exec_succes, stdin, stdout, stderr] = self._try_exec(ssh_command)
 
         elif autoexecs == ['autoexec.sas']:
             ssh_command = 'cp autoexec.sas .autoexecsas'
-            [exec_succes, stdin, stdout, stderr] = self._try_exec(
-                ssh_command, WRDS_DOMAIN, self.wrds_username)
+            [exec_succes, stdin, stdout, stderr] = self._try_exec(ssh_command)
 
         elif autoexecs == []:
             with open('autoexec.sas', 'wb') as fd:
                 fd.write(AUTOEXEC_TEXT)
             local_path = 'autoexec.sas'
             remote_path = 'autoexec.sas'
-            [put_success] = self._try_put(local_path, remote_path,
-                                          WRDS_DOMAIN, self.wrds_username)
+            [put_success] = self._try_put(local_path, remote_path)
             ssh_command = 'cp autoexec.sas .autoexecsas'
-            [exec_succes, stdin, stdout, stderr] = self._try_exec(ssh_command,
-                                                              WRDS_DOMAIN,
-                                                              self.wrds_username)
+            [exec_succes, stdin, stdout, stderr] = self._try_exec(ssh_command)
             os.remove('autoexec.sas')
 
         local_path = os.path.join(self.download_path, sas_file)
         remote_path = sas_file
-        [put_success] = self._try_put(local_path, remote_path,
-                                            WRDS_DOMAIN, self.wrds_username)
-        #[put_success, numtrys, max_trys] = [0, 0, 3]
-        #while put_success == 0 and numtrys < max_trys:
-        #	try:
-        #		sftp.put(local_path, sas_file)
-        #		put_success = 1
-        #	except (paramiko.SSHException,IOError,EOFError):
-        #		[ssh, sftp] = getSSH(ssh, sftp, domain=_domain, username=_uname)
-        #		numtrys += 1
 
-        return put_success
+        return self._try_put(local_path, remote_path)
 
     def _sas_step(self, sas_file, outfile):
         """wraps the running of the sas command (_run_sas_command).
@@ -658,7 +639,7 @@ class WrdsSession(object):
                 if not self.sftp:
                     return exit_status
 
-                fdict = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
+                fdict = self._try_listdir('.')
 
                 if outfile in fdict.keys():
                     exit_status = 0
@@ -700,7 +681,7 @@ class WrdsSession(object):
         :return exit_status:
         """
         real_failure = 1
-        fdict = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
+        fdict = self._try_listdir('.')
 
         if exit_status == 2 and log_file in fdict.keys():
             fd = self.sftp.file(log_file)
@@ -719,9 +700,8 @@ class WrdsSession(object):
                     + 'ectools is downloading the file for user inspection.')
                 remote_path = outfile
                 local_path = os.path.join(self.download_path, outfile)
-                [get_success, dt] = \
-                    self._try_get(local_path=local_path, remote_path=remote_path,
-                          domain=WRDS_DOMAIN, username=self.wrds_username)
+                [get_success, dt] = self._try_get(local_path, remote_path)
+
                 if get_success == 0:
                     print('File download failure.')
 
@@ -795,9 +775,7 @@ class WrdsSession(object):
                        self.wrds_username + '/' + outfile)
         write_file = '.' + outfile + '--writing'
         local_path = os.path.join(os.path.expanduser('~'), write_file)
-        [get_success, dt] = \
-            self._try_get(local_path=local_path, remote_path=remote_path,
-                          domain=WRDS_DOMAIN, username=self.wrds_username)
+        [get_success, dt] = self._try_get(local_path, remote_path)
 
         print('retrieve_file: '+repr(outfile)
             +' ('+repr(remote_size)+' bytes) '
@@ -820,7 +798,7 @@ class WrdsSession(object):
         local_path = os.path.join(os.path.expanduser('~'), write_file)
         if remote_size == local_size != 0:
             [exec_succes, stdin, stdout, stderr] = \
-                self._try_exec('rm ' + outfile, WRDS_DOMAIN, self.wrds_username)
+                self._try_exec('rm ' + outfile)
             to_path = os.path.join(self.download_path, outfile)
             shutil.move(local_path, to_path)
             compare_success = 1
@@ -855,19 +833,16 @@ class WrdsSession(object):
                        self.wrds_username + '/' + log_file)
         local_path = os.path.join(self.download_path, log_file)
         [success, dt] = \
-            self._try_get(local_path=local_path, remote_path=remote_path,
-                          domain=WRDS_DOMAIN, username=self.wrds_username)
-        [exec_succes, stdin, stdout, stderr] = \
-            self._try_exec('rm ' + sas_file, WRDS_DOMAIN, self.wrds_username)
-        [exec_succes, stdin, stdout, stderr] = \
-            self._try_exec('rm wrds_export*', WRDS_DOMAIN, self.wrds_username)
+            self._try_get(local_path, remote_path)
+        [exec_succes, stdin, stdout, stderr] = self._try_exec('rm ' + sas_file)
+        [exec_succes, stdin, stdout, stderr] = self._try_exec('rm wrds_export*')
 
         saspath = os.path.join(self.download_path, sas_file)
         if os.path.exists(saspath):
             os.remove(saspath)
         return [success]
 
-    def _try_put(self, local_path, remote_path, domain, username, ports=[22]):
+    def _try_put(self, local_path, remote_path, domain=None, username=None, ports=[22]):
         """Transfers file from local_path to remote_path using the sftp client.
 
         TODO: Reinitiating the ssh connection if needbe.
@@ -902,7 +877,7 @@ class WrdsSession(object):
             n_tries += 1
         return [success]
 
-    def _try_get(self, local_path, remote_path, domain, username, ports=[22]):
+    def _try_get(self, local_path, remote_path, domain=None, username=None, ports=[22]):
         """Tries three times to download file from remote_path to local_path
         using the sftp client.
 
@@ -938,7 +913,7 @@ class WrdsSession(object):
 
         return [success, time.time()-tic]
 
-    def _try_exec(self, command, domain, username, ports=[22]):
+    def _try_exec(self, command, domain=None, username=None, ports=[22]):
         """
 
         :param command:
@@ -959,7 +934,7 @@ class WrdsSession(object):
 
         return [success, stdin, stdout, stderr]
 
-    def _try_listdir(self, remote_dir, domain, username, ports=[22]):
+    def _try_listdir(self, remote_dir, domain=None, username=None, ports=[22]):
         """Tries three times to get a a list of files and their attributes
         from the directory remote_dir on the remote server.
 
