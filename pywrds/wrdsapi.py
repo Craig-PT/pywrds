@@ -721,8 +721,8 @@ class WrdsSession(object):
                 remote_path = outfile
                 local_path = os.path.join(self.download_path, outfile)
                 [get_success, dt] = \
-                    self._try_get(domain=WRDS_DOMAIN, username=self.wrds_username,
-                                  remote_path=remote_path, local_path=local_path)
+                    self._try_get(local_path=local_path, remote_path=remote_path,
+                          domain=WRDS_DOMAIN, username=self.wrds_username)
                 if get_success == 0:
                     print('File download failure.')
 
@@ -797,8 +797,8 @@ class WrdsSession(object):
         write_file = '.' + outfile + '--writing'
         local_path = os.path.join(os.path.expanduser('~'), write_file)
         [get_success, dt] = \
-            self._try_get(domain=WRDS_DOMAIN, username=self.wrds_username,
-                          remote_path=remote_path, local_path=local_path)
+            self._try_get(local_path=local_path, remote_path=remote_path,
+                          domain=WRDS_DOMAIN, username=self.wrds_username)
 
         print('retrieve_file: '+repr(outfile)
             +' ('+repr(remote_size)+' bytes) '
@@ -856,8 +856,8 @@ class WrdsSession(object):
                        self.wrds_username + '/' + log_file)
         local_path = os.path.join(self.download_path, log_file)
         [success, dt] = \
-            self._try_get(domain=WRDS_DOMAIN, username=self.wrds_username,
-                          remote_path=remote_path, local_path=local_path)
+            self._try_get(local_path=local_path, remote_path=remote_path,
+                          domain=WRDS_DOMAIN, username=self.wrds_username)
         [exec_succes, stdin, stdout, stderr] = \
             self._try_exec('rm ' + sas_file, WRDS_DOMAIN, self.wrds_username)
         [exec_succes, stdin, stdout, stderr] = \
@@ -903,7 +903,7 @@ class WrdsSession(object):
             n_tries += 1
         return [success]
 
-    def _try_get(self, domain, username, remote_path, local_path, ports=[22]):
+    def _try_get(self, local_path, remote_path, domain, username, ports=[22]):
         """Tries three times to download file from remote_path to local_path
         using the sftp client.
 
@@ -913,10 +913,10 @@ class WrdsSession(object):
         not already in use, or that there is enough space free on the local
         disk to complete the download.
 
+        :param local_path:
+        :param remote_path:
         :param domain:
         :param username:
-        :param remote_path:
-        :param local_path:
         :param ports:
         :return [success (bool), time_elapsed]:
         """
