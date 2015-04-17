@@ -867,11 +867,12 @@ class WrdsSession(object):
         :param ports:
         :return success:
         """
-        [success, numtrys, maxtrys] = [0, 0, 3]
         local_stat = os.stat(local_path)
-        while success == 0 and numtrys < maxtrys:
+        [success, n_tries, max_tries] = [0, 0, 3]
+        while not success and n_tries < max_tries:
             try:
                 remote_attrs = self.sftp.put(local_path, remote_path)
+                # Check file transferred is same as local version
                 if remote_attrs.st_size == local_stat.st_size:
                     success = 1
             except KeyboardInterrupt:
@@ -881,17 +882,16 @@ class WrdsSession(object):
                     pass
                 raise KeyboardInterrupt
             except (IOError, EOFError, paramiko.SSHException):
-                # TODO: Handle sftp error
-                # [ssh, sftp] = self.getSSH(ssh, sftp, domain, username, ports)
+                # TODO: Handle sftp error, try to reconnect.
                 try:
                     self.sftp.remove(remote_path)
                 except (IOError, EOFError, paramiko.SSHException):
                     pass
-            numtrys += 1
+            n_tries += 1
         return [success]
 
     def _try_get(self, domain, username, remote_path, local_path, ports=[22]):
-        """Trys three times to download file from remote_path to local_path
+        """Tries three times to download file from remote_path to local_path
         using the sftp client.
 
         TODO: If a connection error occurs, it is re-established.
@@ -908,8 +908,8 @@ class WrdsSession(object):
         :return [success (bool), time_elapsed]:
         """
         tic = time.time()
-        [success, numtrys, maxtrys] = [0, 0, 3]
-        while success == 0 and numtrys < maxtrys:
+        [success, n_tries, max_tries] = [0, 0, 3]
+        while not success and n_tries < max_tries:
             try:
                 self.sftp.get(remotepath=remote_path, localpath=local_path)
                 success = 1
@@ -917,10 +917,8 @@ class WrdsSession(object):
                     EOFError):
                 if os.path.exists(local_path):
                     os.remove(local_path)
-                # TODO: Handle sftp error
-                #[ssh, sftp] = self.getSSH(ssh, sftp, domain=domain,
-                #                      username=username)
-                numtrys += 1
+                # TODO: Handle sftp error, try to reconnect.
+                n_tries += 1
             except KeyboardInterrupt:
                 if os.path.exists(local_path):
                     os.remove(local_path)
@@ -935,19 +933,17 @@ class WrdsSession(object):
         :param domain:
         :param username:
         :param ports:
-        :return:
+        :return [success, stdin, stdout, stderr]:
         """
-        [success, numtrys, maxtrys] = [0, 0 ,3]
+        [success, n_tries, max_tries] = [0, 0, 3]
         [stdin, stdout, stderr] = [None, None, None]
-        while not success and numtrys < maxtrys:
+        while not success and n_tries < max_tries:
             try:
                 [stdin, stdout, stderr] = self.ssh.exec_command(command)
                 success = 1
             except (IOError, EOFError, paramiko.SSHException):
-                # TODO: Handle sftp error
-                # [ssh, sftp] = getSSH(ssh, sftp, domain=domain,
-                # username=username)
-                numtrys += 1
+                # TODO: Handle sftp error, try to reconnect.
+                n_tries += 1
 
         return [success, stdin, stdout, stderr]
 
@@ -957,28 +953,23 @@ class WrdsSession(object):
 
         TODO: reinitiating the ssh connection if needbe.
 
-        Creates a dictionary fdict = {filename: [attributes]} across
-        the files in the remote directory.
-
         :param remote_dir:
         :param domain:
         :param username:
         :param ports:
-        :return [fdict]:
+        :return (dict): {filename: [attributes]} across files in the remote
+                        directory
         """
-        fdict = {}
         remote_list = []
-        [success, numtrys, maxtrys] = [0, 0, 3]
-        while success == 0 and numtrys < maxtrys:
+        [success, n_tries, max_tries] = [0, 0, 3]
+        while not success and n_tries < max_tries:
             try:
                 remote_list = self.sftp.listdir_attr(remote_dir)
                 success = 1
             except (IOError, EOFError, paramiko.SSHException):
                 # TODO: Handle sftp error
-                # [ssh, sftp] = getSSH(ssh, sftp, domain, username, ports)
-                numtrys += 1
+                n_tries += 1
 
-        fdict = {x.filename: x for x in remote_list}
-        return [fdict]
+        return {x.filename: x for x in remote_list}
 
 
