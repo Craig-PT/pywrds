@@ -10,7 +10,7 @@ import shutil
 import paramiko
 
 from _wrds_db_descriptors import WRDS_DOMAIN, _GET_ALL, FIRST_DATES, \
-    FIRST_DATE_GUESSES, AUTOEXEC_TEXT
+    FIRST_DATE_GUESSES, AUTOEXEC_TEXT, WRDS_USER_QUOTA
 
 from pywrds import sshlib
 from pywrds import utility as wrds_util
@@ -583,13 +583,12 @@ class WrdsSession(object):
 
         file_sizes = [initial_file.st_size for initial_file in initial_files]
         total_file_size = sum(file_sizes)
-        if total_file_size > 5*10**8:
+        if total_file_size > WRDS_USER_QUOTA:
             MBs = int(float(total_file_size)/1000000)
-            print('You are using approximately '+str(MBs)
-                +' megabytes of your 1 GB'
-                +' quota on the WRDS server.  This may cause '
-                +'WrdsSession.get_wrds to operate'
-                +' incorrectly.  The files present are: ')
+            print('You are using approximately ' + str(MBs) + ' megabytes of'
+                  ' your 1 GB quota on the WRDS server. This may cause '
+                  'WrdsSession.get_wrds to operate incorrectly.  The files '
+                  'present are: ')
             print([x.filename for x in initial_files])
 
         auto_names = ['autoexec.sas', '.autoexecsas']

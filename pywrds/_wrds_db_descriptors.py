@@ -11,6 +11,8 @@ AUTOEXEC_TEXT = ("*  The library name definitions below are used by SAS;\n"
     +"\n\n   %include '!SASROOT/wrdslib.sas' ;\n\n\n"
     )
 
+WRDS_USER_QUOTA = 5*10**8
+
 # first_dates is an estimate of the first date YYYYMMDD on        #
 # which data is available for a given WRDS dataset.               #
 FIRST_DATES = {
