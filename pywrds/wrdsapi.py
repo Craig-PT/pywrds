@@ -319,7 +319,7 @@ class WrdsSession(object):
         local_path = os.path.join(self.download_path, filename + '_dicts.lst')
         remote_path = ('/home/' + self.wrds_institution + '/' +
                        self.wrds_username + '/wrds_dicts.lst')
-        [fdict] = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
+        fdict = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
         remote_list = fdict.keys()
 
         if exit_status in [0, 1] and 'wrds_dicts.lst' in remote_list:
@@ -474,7 +474,7 @@ class WrdsSession(object):
         exit_status = self._handle_sas_failure(exit_status, outfile, log_file)
 
         if exit_status in [0, 1]:
-            [fdict] = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
+            fdict = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
             file_list = fdict.keys()
             if outfile not in file_list:
                 print('exit_status in [0, 1] suggests SAS succeeded, '
@@ -554,7 +554,7 @@ class WrdsSession(object):
         :param sas_file:
         :return put_success (bool):
         """
-        [fdict] = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
+        fdict = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
         initial_files = fdict.values()
 
         old_export_files = [x for x in initial_files
@@ -659,7 +659,7 @@ class WrdsSession(object):
                 if not self.sftp:
                     return exit_status
 
-                [fdict] = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
+                fdict = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
 
                 if outfile in fdict.keys():
                     exit_status = 0
@@ -701,7 +701,7 @@ class WrdsSession(object):
         :return exit_status:
         """
         real_failure = 1
-        [fdict] = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
+        fdict = self._try_listdir('.', WRDS_DOMAIN, self.wrds_username)
 
         if exit_status == 2 and log_file in fdict.keys():
             fd = self.sftp.file(log_file)
