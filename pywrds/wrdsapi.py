@@ -395,23 +395,23 @@ class WrdsSession(object):
             if keep_going > 0:
                 n_files += 1
                 if os.path.exists(os.path.join(self.download_path, outfile)):
-                    log_lines = wrds_util.get_numlines_from_log(
+                    log_lines = wrds_util.get_n_lines_from_log(
                         outfile, dname=self.download_path)
-                    numlines = wrds_util.get_numlines(os.path.join(
+                    n_lines = wrds_util.get_n_lines(os.path.join(
                         self.download_path, outfile))
-                    if log_lines > numlines:
+                    if log_lines > n_lines:
                         print('get_wrds error: file "%s" has %s lines, but %s '
                               'were expected.',
-                              (outfile, str(numlines), str(log_lines)))
+                              (outfile, str(n_lines), str(log_lines)))
                         keep_going = 0
 
-                    total_rows += numlines
-                    if numlines < rows_per_file:
+                    total_rows += n_lines
+                    if n_lines < rows_per_file:
                         keep_going = 0
 
-                    if log_lines == numlines < rows_per_file:
+                    if log_lines == n_lines < rows_per_file:
                         keep_going = 0
-                        if not (log_lines == -1 or log_lines == numlines):
+                        if not (log_lines == -1 or log_lines == n_lines):
                             print('get_wrds warning: '
                                 +'log_lines = '+str(log_lines))
                         if startrow == 1:
@@ -422,7 +422,7 @@ class WrdsSession(object):
                             os.rename(oldp2f, newp2f)
                         else:
                             subfrom = 'to' + str(R[-1])
-                            subto = 'to' + str(R[0] - 1 + numlines)
+                            subto = 'to' + str(R[0] - 1 + n_lines)
                             newname = re.sub(subfrom, subto, outfile)
                             oldp2f = os.path.join(self.download_path, outfile)
                             newp2f = os.path.join(self.download_path, newname)
@@ -507,7 +507,7 @@ class WrdsSession(object):
         :return [n_files, time_elapsed]:
         """
         tic = time.time()
-        [n_files, numlines, numlines0] = [0, 0, 0]
+        [n_files, n_lines, n_lines0] = [0, 0, 0]
         [min_year, min_month, min_day] = self.min_ymd(min_date, dataset)
         flist = os.listdir(self.download_path)
 

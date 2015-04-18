@@ -192,23 +192,23 @@ def wait_for_retrieve_completion(outfile, get_success, max_wait=1200):
     return local_size
 
 
-def get_numlines(path2file):
+def get_n_lines(path2file):
     """Returns number of lines for a text files located at path2file.
 
     :param path2file:
-    :return numlines:
+    :return n_lines:
     """
     with open(path2file, 'rb') as fd:
         fsize = os.stat(fd.name).st_size
-        numlines = 0
+        n_lines = 0
         first_line = fd.readline().split('\t')
         while fd.tell() < fsize:
             fline = fd.readline()
-            numlines += 1
-    return numlines
+            n_lines += 1
+    return n_lines
 
 
-def get_numlines_from_log(outfile, dname):
+def get_n_lines_from_log(outfile, dname):
     """Reads SAS log file created in get_wrds to find the number of
     lines which the wrds server says should be in a downloaded
     file "outfile".
@@ -326,13 +326,13 @@ def _recombine_ready(fname, dname=None, suppress=0):
                                                        + '.tsv')]
         if len(flist2) == 1:
             outfile = flist2[0]
-            numlines = get_numlines(os.path.join(dname, outfile))
-            log_numlines = get_numlines_from_log(outfile, dname)
-            if numlines != log_numlines:
+            n_lines = get_n_lines(os.path.join(dname, outfile))
+            log_n_lines = get_n_lines_from_log(outfile, dname)
+            if n_lines != log_n_lines:
                 isready = 0
                 print('recombine_ready: '+outfile
-                    +' numlines!=log_numlines: '
-                    +repr([numlines, log_numlines]))
+                    +' n_lines!=log_n_lines: '
+                    +repr([n_lines, log_n_lines]))
         else:
             isready = 0
             if suppress == 0:
