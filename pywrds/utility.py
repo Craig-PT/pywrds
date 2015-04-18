@@ -158,8 +158,7 @@ def wrds_datevar(filename):
 
 
 def wait_for_retrieve_completion(outfile, get_success, max_wait=1200):
-    """
-    Checks the size of the downloaded outfile until two successive
+    """Checks size of downloaded outfile until two successive
     give the same result.
     Until this point, it infers that the download is still in progress.
 
@@ -170,24 +169,26 @@ def wait_for_retrieve_completion(outfile, get_success, max_wait=1200):
     """
     if get_success == 0:
         return 0
-    waited3 = 0
-    [locmeasure1, locmeasure2, mtime2] = [0, 1, time.time()]
+
+    [total_wait, local_size, local_size_delayed, mtime2] = \
+        [0, 0, 1, time.time()]
+
     write_file = '.' + outfile + '--writing'
     local_path = os.path.join(os.path.expanduser('~'), write_file)
-    while ((waited3 < max_wait)
-        and (locmeasure1 != locmeasure2 or (time.time() - mtime2) <= 10)):
-        locmeasure1 = locmeasure2
+
+    while total_wait < max_wait and local_size != local_size_delayed:
+        local_size = local_size_delayed
         time.sleep(5)
-        waited3 += 5
+        total_wait += 5
         local_stat = os.stat(local_path)
-        locmeasure2 = local_stat.st_size
+        local_size_delayed = local_stat.st_size
         mtime2 = local_stat.st_mtime
 
-    if waited3 >= max_wait:
-        print('get_wrds stopped waiting for SAS completion at step 3',
-            locmeasure1, locmeasure2, mtime2)
-        locmeasure1 = 0
-    local_size = locmeasure1
+    if total_wait >= max_wait:
+        print('get_wrds stopped waiting for SAS completion at step 3, %s, %s, '
+              '%s', (local_size, local_size_delayed, mtime2))
+        local_size = 0
+
     return local_size
 
 
