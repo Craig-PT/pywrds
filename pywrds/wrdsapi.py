@@ -117,16 +117,16 @@ class WrdsSession(object):
         ymdrange = [x for x in ymdrange if x >= [min_year, min_month, min_day]]
         return ymdrange
 
-    def update_user_info(self, numfiles, new_files, fname, dataset, year,
+    def update_user_info(self, n_files, new_files, fname, dataset, year,
                          month=0, day=0):
-        """update_user_info(numfiles, new_files, fname, dataset, year, month=0, day=0)
+        """update_user_info(n_files, new_files, fname, dataset, year, month=0, day=0)
         amends the user_info file to reflect the most recent download dates
         for wrds files.
 
         return
         """
         if new_files > 0:
-            numfiles = numfiles + new_files
+            n_files = n_files + new_files
             if 'last_wrds_download' not in self.user_info.keys():
                 self.user_info['last_wrds_download'] = {}
             self.user_info['last_wrds_download'][dataset] = \
@@ -318,14 +318,14 @@ class WrdsSession(object):
         local_path = os.path.join(self.download_path, filename + '_dicts.lst')
         remote_path = ('/home/' + self.wrds_institution + '/' +
                        self.wrds_username + '/wrds_dicts.lst')
-        fdict = self._try_listdir('.')
-        remote_list = fdict.keys()
+        remote_files = self._try_listdir('.')
+        remote_list = remote_files.keys()
 
         if exit_status in [0, 1] and 'wrds_dicts.lst' in remote_list:
             [get_success, dt] = self._try_get(local_path, remote_path)
         else:
             print('find_wrds did not generate a wrds_dicts.lst '
-                + 'file for input: ' + repr(filename))
+                  + 'file for input: ' + repr(filename))
         try:
             self.sftp.remove('wrds_dicts.sas')
         except (IOError, EOFError, paramiko.SSHException):
@@ -375,11 +375,10 @@ class WrdsSession(object):
         :param M:
         :param D:
         :param recombine:
-        :return [numfiles, total_rows, time_elapsed]:
+        :return [n_files, total_rows, time_elapsed]:
         """
-        tic = time.time()
         keep_going = 1
-        [startrow, numfiles, total_rows, tic] = [1, 0, 0, time.time()]
+        [startrow, n_files, total_rows, tic] = [1, 0, 0, time.time()]
         rows_per_file = wrds_util.rows_per_file_adjusted(dataset)
         [dset2, outfile] = wrds_util.fix_input_name(dataset, Y, M, D, [])
 
@@ -394,17 +393,16 @@ class WrdsSession(object):
                 [keep_going, dt] = self._get_wrds_chunk(dataset, Y, M, D, R)
 
             if keep_going > 0:
-                numfiles += 1
+                n_files += 1
                 if os.path.exists(os.path.join(self.download_path, outfile)):
                     log_lines = wrds_util.get_numlines_from_log(
                         outfile, dname=self.download_path)
                     numlines = wrds_util.get_numlines(os.path.join(
                         self.download_path, outfile))
                     if log_lines > numlines:
-                        print('get_wrds error: file '
-                            +outfile+' has '+ str(numlines)
-                            +' lines, but '+ str(log_lines)
-                            +' were expected.')
+                        print('get_wrds error: file "%s" has %s lines, but %s '
+                              'were expected.',
+                              (outfile, str(numlines), str(log_lines)))
                         keep_going = 0
 
                     total_rows += numlines
@@ -423,8 +421,8 @@ class WrdsSession(object):
                             oldp2f = os.path.join(self.download_path, outfile)
                             os.rename(oldp2f, newp2f)
                         else:
-                            subfrom = 'to'+str(R[-1])
-                            subto = 'to'+str(R[0] - 1 + numlines)
+                            subfrom = 'to' + str(R[-1])
+                            subto = 'to' + str(R[0] - 1 + numlines)
                             newname = re.sub(subfrom, subto, outfile)
                             oldp2f = os.path.join(self.download_path, outfile)
                             newp2f = os.path.join(self.download_path, newname)
@@ -441,7 +439,7 @@ class WrdsSession(object):
                 else:
                     keep_going = 0
 
-        return [numfiles, total_rows, time.time()-tic]
+        return [n_files, total_rows, time.time()-tic]
 
     def _get_wrds_chunk(self, dataset, Y, M=0, D=0, R=[]):
         """Helper fn to manage server data storage limits.
@@ -471,12 +469,12 @@ class WrdsSession(object):
         exit_status = self._handle_sas_failure(exit_status, outfile, log_file)
 
         if exit_status in [0, 1]:
-            fdict = self._try_listdir('.')
-            file_list = fdict.keys()
+            remote_files = self._try_listdir('.')
+            file_list = remote_files.keys()
             if outfile not in file_list:
-                print('exit_status in [0, 1] suggests SAS succeeded, '
-                    +'but the desired output_file "'
-                    +outfile+'" is not present in the file list:')
+                print('exit_status in [0, 1] suggests SAS succeeded, but the '
+                      'desired output_file %s is not present in the file '
+                      'list:', outfile)
                 print(file_list)
 
             else:
@@ -488,7 +486,7 @@ class WrdsSession(object):
                     self._compare_local_to_remote(outfile, remote_size,
                                                   local_size)
 
-        [got_log] = self._get_log_file(log_file, sas_file)
+        got_log = self._get_log_file(log_file, sas_file)
         checkfile = os.path.join(self.download_path, outfile)
         if os.path.exists(checkfile) or exit_status == 0:
             return [1, time.time()-tic]
@@ -506,10 +504,10 @@ class WrdsSession(object):
         :param dataset:
         :param min_date:
         :param recombine:
-        :return [numfiles, time_elapsed]:
+        :return [n_files, time_elapsed]:
         """
         tic = time.time()
-        [numfiles, numlines, numlines0] = [0, 0, 0]
+        [n_files, numlines, numlines0] = [0, 0, 0]
         [min_year, min_month, min_day] = self.min_ymd(min_date, dataset)
         flist = os.listdir(self.download_path)
 
@@ -518,9 +516,8 @@ class WrdsSession(object):
             get_output = self.get_wrds(dataset, Y, M=0, D=0, recombine=recombine)
             [new_files, total_lines, dt] = self.get_output
             if new_files > 0:
-                numfiles = numfiles + 1
-            return [numfiles, time.time()-tic]
-
+                n_files += 1
+            return [n_files, time.time()-tic]
 
         for ymd in self.get_ymd_range(min_date, dataset, 1):
             [Y, M, D] = ymd
@@ -530,17 +527,22 @@ class WrdsSession(object):
             get_output = self.get_wrds(dataset, Y, M=M, D=D, recombine=recombine)
             [new_files, total_lines, dt] = self.get_output
 
-            numfiles = numfiles + new_files
-            self.update_user_info(numfiles, new_files, fname=outfile,
+            n_files += new_files
+            self.update_user_info(n_files, new_files, fname=outfile,
                                   dataset=dataset, year=Y, month=M, day=D)
 
-        return [numfiles, time.time()-tic]
+        return [n_files, time.time()-tic]
 
     def _put_sas_file(self, outfile, sas_file):
-        """puts the sas_file in the appropriate directory on the wrds server,
-        handling several common errors that occur during this process.
+        """Puts sas_file in home directory on wrds server, checks autoexec
+        and removes existing run and log scripts.
+
+        Checks autoexec file present, and adds if not. Removes all previous sas
+        and log files with the wrds_export prefix and any result files with the
+        rows<x>to<y>.tsv format.
 
         1. Removes old files which may interfere with the new files.
+            Assumes export files in format wrds_export_<outfile>.sas,
         2. Checks enough space in user account on wrds server to run sas_file.
         3. Checks necessary autoexec.sas files are present in the directory.
 
@@ -548,14 +550,15 @@ class WrdsSession(object):
         :param sas_file:
         :return put_success (bool):
         """
-        fdict = self._try_listdir('.')
-        initial_files = fdict.values()
+        remote_files = self._try_listdir('.')
+        initial_files = remote_files.values()
 
-        # 1. Removes old files which may interfere with the new files.
-        old_export_files = [x for x in initial_files
-            if re.search('wrds_export.*sas$', x.filename)
-            or re.search('wrds_export.*log$', x.filename)
-            or x.filename == sas_file]
+        # 1. Removes old files, both .sas and .log files with wrds_export prefix
+        old_export_files = \
+            [x for x in initial_files
+             if re.search('wrds_export.*sas$', x.filename)
+             or re.search('wrds_export.*log$', x.filename)
+             or x.filename == sas_file]
         for old_file in old_export_files:
             try:
                 self.sftp.remove(old_file.filename)
@@ -563,6 +566,7 @@ class WrdsSession(object):
                 pass
             initial_files.remove(old_file)
 
+        # Catch the row fragment of any output files, e.g. rows1to1000000.tsv.
         pattern = '[0-9]*rows[0-9]+to[0-9]+\.tsv$'
         old_outfiles = [x for x in initial_files
             if re.sub(pattern, '', x.filename) == re.sub(pattern, '', outfile)]
@@ -615,7 +619,7 @@ class WrdsSession(object):
         return self._try_put(local_path, remote_path)
 
     def _sas_step(self, sas_file, outfile):
-        """wraps the running of the sas command (_run_sas_command).
+        """Wraps running of sas command (_run_sas_command).
 
          TODO: Retrying and re-initializing the network connection if necessary.
 
@@ -623,43 +627,39 @@ class WrdsSession(object):
         :param outfile:
         :return exit_status:
         """
-        [sas_completion, num_sas_trys, max_sas_trys] = [0, 0, 3]
-        while sas_completion == 0 and num_sas_trys < max_sas_trys:
+        [sas_completion, n_sas_trys, max_sas_trys] = [0, 0, 3]
+        while sas_completion == 0 and n_sas_trys < max_sas_trys:
             exit_status = self._run_sas_command(sas_file, outfile)
-            num_sas_trys += 1
+            n_sas_trys += 1
             sas_completion = 1
 
             if exit_status in [42, 104]:
-                # 42 = network read failed                 #
-                # 104 = connection reset by peer           #
+                # 42 = network read failed, 104 = connection reset by peer
                 # TODO: Deal with reinitiating a session - this will break.
                 sas_completion = 0
-                # [ssh, sftp] = getSSH(ssh, sftp, domain=WRDS_DOMAIN,
-                # username=_uname)
                 if not self.sftp:
                     return exit_status
 
-                fdict = self._try_listdir('.')
+                remote_files = self._try_listdir('.')
 
-                if outfile in fdict.keys():
+                if outfile in remote_files.keys():
                     exit_status = 0
                     sas_completion = 1
 
-                elif 'log_file' in fdict.keys():
+                elif 'log_file' in remote_files.keys():
                     exit_status = -1
                     sas_completion = 1
         return exit_status
 
     def _run_sas_command(self, sas_file, outfile):
-        """Executes the sas script sas_file on the wrds server and waits for
-        an exit status to be returned.
+        """Executes sas_file on wrds server. Waits for return of exit status.
 
         :param sas_file:
         :param outfile:
         :return exit_status:
         """
-        sas_command = ('sas -noterminal '+ sas_file)
-        [stdin,stdout,stderr] = self.ssh.exec_command(sas_command)
+        sas_command = ('sas -noterminal ' + sas_file)
+        [stdin, stdout, stderr] = self.ssh.exec_command(sas_command)
         [exit_status, exit_status2, waited, maxwait] = [-1, -1, 0, 1200]
         while exit_status == -1 and waited < maxwait:
             time.sleep(10)
@@ -667,8 +667,8 @@ class WrdsSession(object):
             exit_status = stdout.channel.recv_exit_status()
 
         if waited >= maxwait:
-            print('get_wrds stopped waiting for SAS '
-                +'completion at step 1: '+outfile)
+            print('get_wrds stopped waiting for SAS completion at step 1: '
+                  + outfile)
         return exit_status
 
     def _handle_sas_failure(self, exit_status, outfile, log_file):
@@ -681,12 +681,11 @@ class WrdsSession(object):
         :return exit_status:
         """
         real_failure = 1
-        fdict = self._try_listdir('.')
+        remote_files = self._try_listdir('.')
 
-        if exit_status == 2 and log_file in fdict.keys():
-            fd = self.sftp.file(log_file)
-            logcontent = fd.read()
-            fd.close()
+        if exit_status == 2 and log_file in remote_files.keys():
+            with self.sftp.file(log_file) as fd:
+                logcontent = fd.read()
             if re.search('error: file .* does not exist.', logcontent,
                          flags=re.I):
                 real_failure = 0
@@ -694,10 +693,11 @@ class WrdsSession(object):
         if exit_status not in [0, 1] and real_failure == 1:
             # 1 is "SAS system issued warnings", non-fatal    #
 
-            if outfile in fdict.keys():
-                print('SAS is apparently returning an incorrect '
-                    + 'exit status: ' + str(exit_status)+', '+outfile+'.  '
-                    + 'ectools is downloading the file for user inspection.')
+            if outfile in remote_files.keys():
+                print('SAS is apparently returning an incorrect exit status: '
+                      + str(exit_status) + ', ' + outfile + '. ectools is ' +
+                      'downloading the file for user inspection.')
+
                 remote_path = outfile
                 local_path = os.path.join(self.download_path, outfile)
                 [get_success, dt] = self._try_get(local_path, remote_path)
@@ -713,8 +713,7 @@ class WrdsSession(object):
         return exit_status
 
     def _wait_for_sas_file_completion(self, outfile):
-        """Checks the size of outfile on the wrds server within get_wrds.
-
+        """Checks size of outfile on the wrds server within get_wrds.
 
         Until it observes two successive measurements with the same file
         size, it infers that the sas script is still writing the file.
@@ -736,7 +735,7 @@ class WrdsSession(object):
                 mtime = output_stat.st_mtime
             except (IOError, EOFError, paramiko.SSHException):
                 raise NotImplementedError
-                # TODO: ssh reconect
+                # TODO: ssh reconnect
 
         if total_wait >= max_wait:
             print('get_wrds stopped waiting for SAS completion at step 2',
@@ -767,8 +766,8 @@ class WrdsSession(object):
 
         if remote_size > free_local_space:
             print('get_wrds cannot download file ' + outfile + ', only '
-            +str(free_local_space)+' bytes available on drive for '
-            +str(remote_size)+'-byte file.')
+                  + str(free_local_space)+' bytes available on drive for '
+                  + str(remote_size) + '-byte file.')
             return [0, time.time()-tic]
 
         remote_path = ('/home/' + self.wrds_institution + '/' +
@@ -777,16 +776,15 @@ class WrdsSession(object):
         local_path = os.path.join(os.path.expanduser('~'), write_file)
         [get_success, dt] = self._try_get(local_path, remote_path)
 
-        print('retrieve_file: '+repr(outfile)
-            +' ('+repr(remote_size)+' bytes) '
-            +' time elapsed='+repr(time.time()-tic))
+        print('retrieve_file: ' + repr(outfile) + ' ('+repr(remote_size) +
+              ' bytes) ' + ' time elapsed=' + repr(time.time()-tic))
 
         return [get_success, time.time()-tic]
 
     def _compare_local_to_remote(self, outfile, remote_size, local_size):
         """Compares the size of the file "outfile" downloaded (local_size) to
         the size of the file as listed on the server (remote_size) to
-        check that the download completed properly.
+        check download completed properly.
 
         :param outfile:
         :param remote_size:
