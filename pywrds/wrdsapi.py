@@ -706,15 +706,15 @@ class WrdsSession(object):
                     print('File download failure.')
 
             else:
-                print('get_wrds failed on file "' + outfile + '"\n'
-                    + 'exit_status = ' + str(exit_status) + '\n'
-                    + 'For details, see log file "' + log_file + '"')
+                print('get_wrds failed on file "' + outfile + '"\n' +
+                      'exit_status = ' + str(exit_status) + '\n' + 'For '
+                      'details, see log file "' + log_file + '"')
 
         return exit_status
 
     def _wait_for_sas_file_completion(self, outfile):
-        """Checks the size of the file outfile produced on the wrds server
-        within get_wrds.
+        """Checks the size of outfile on the wrds server within get_wrds.
+
 
         Until it observes two successive measurements with the same file
         size, it infers that the sas script is still writing the file.
@@ -722,27 +722,27 @@ class WrdsSession(object):
         :param outfile:
         :return remote_size:
         """
-        [measure1, measure2, mtime, waited2, maxwait2] = [0, 1, time.time(), 0, 1200]
-        while self.sftp and ((waited2 < maxwait2)
-            and (measure1 != measure2 or (time.time() - mtime <= 10))):
-            measure1 = measure2
+        [remote_size, remote_size_delayed, mtime, total_wait, max_wait] \
+            = [0, 1, time.time(), 0, 1200]
+
+        while self.sftp and ((total_wait < max_wait) and
+                             remote_size != remote_size_delayed):
+            remote_size = remote_size_delayed
             time.sleep(10)
-            waited2 += 10
+            total_wait += 10
             try:
                 output_stat = self.sftp.stat(outfile)
-                measure2 = output_stat.st_size
+                remote_size_delayed = output_stat.st_size
                 mtime = output_stat.st_mtime
             except (IOError, EOFError, paramiko.SSHException):
                 raise NotImplementedError
-                # [ssh, sftp] = getSSH(ssh, sftp, domain=WRDS_DOMAIN,
-                # username=_uname)
+                # TODO: ssh reconect
 
-        if waited2 >= maxwait2:
-            print(['get_wrds stopped waiting for SAS completion at step 2',
-                measure1, measure2, mtime])
-            measure1 = 0
+        if total_wait >= max_wait:
+            print('get_wrds stopped waiting for SAS completion at step 2',
+                  + remote_size + remote_size_delayed + mtime)
+            remote_size = 0
             # should i remove the file in this case?
-        remote_size = measure1
 
         return remote_size
 
