@@ -464,7 +464,12 @@ class WrdsSession(object):
             sas_query.wrds_sas_script(self.download_path, dataset, Y, M, D, R)
         log_file = re.sub('\.sas$', '.log', sas_file)
 
-        put_success = self._put_sas_file(outfile, sas_file)
+        # Legacy: define trunk of export .sas scripts, as remove any files
+        # with this trunk in the remote home dir.
+        trunk = 'wrds_export'
+        local_file = os.path.join(self.download_path, sas_file)
+
+        put_success = self._put_sas_file(outfile, sas_file, local_file, trunk)
         exit_status = self._sas_step(sas_file, outfile)
         exit_status = self._handle_sas_failure(exit_status, outfile, log_file)
 
@@ -533,7 +538,7 @@ class WrdsSession(object):
 
         return [n_files, time.time()-tic]
 
-    def _put_sas_file(self, outfile, sas_file):
+    def _put_sas_file(self, outfile, sas_file, local_file_path, trunk=None):
         """Puts sas_file in home directory on wrds server, checks autoexec
         and removes existing run and log scripts.
 
@@ -548,16 +553,24 @@ class WrdsSession(object):
 
         :param outfile:
         :param sas_file:
-        :return put_success (bool):
+        :param local_file_path: Location of sas_file
+        :param trunk: Common component of remote files that will be removed
+        from remote, originally wrds_export.
+        :return success (bool):
         """
         remote_files = self._try_listdir('.')
         initial_files = remote_files.values()
 
+        # TODO: If no trunk supplied, think what to do
+        if not trunk:
+            # Possibly just take stem of sas_file, LHS of period.
+            raise NotImplementedError
+
         # 1. Removes old files, both .sas and .log files with wrds_export prefix
         old_export_files = \
             [x for x in initial_files
-             if re.search('wrds_export.*sas$', x.filename)
-             or re.search('wrds_export.*log$', x.filename)
+             if re.search(re.escape(trunk) + '.*sas$', x.filename)
+             or re.search(re.escape(trunk) + '.*log$', x.filename)
              or x.filename == sas_file]
         for old_file in old_export_files:
             try:
@@ -569,7 +582,8 @@ class WrdsSession(object):
         # Catch the row fragment of any output files, e.g. rows1to1000000.tsv.
         pattern = '[0-9]*rows[0-9]+to[0-9]+\.tsv$'
         old_outfiles = [x for x in initial_files
-            if re.sub(pattern, '', x.filename) == re.sub(pattern, '', outfile)]
+                        if re.sub(pattern, '', x.filename)
+                        == re.sub(pattern, '', outfile)]
 
         for old_file in old_outfiles:
             try:
@@ -613,10 +627,7 @@ class WrdsSession(object):
             [exec_succes, stdin, stdout, stderr] = self._try_exec(ssh_command)
             os.remove('autoexec.sas')
 
-        local_path = os.path.join(self.download_path, sas_file)
-        remote_path = sas_file
-
-        return self._try_put(local_path, remote_path)
+        return self._try_put(local_file_path, sas_file)
 
     def _sas_step(self, sas_file, outfile):
         """Wraps running of sas command (_run_sas_command).
@@ -873,7 +884,7 @@ class WrdsSession(object):
                 except (IOError, EOFError, paramiko.SSHException):
                     pass
             n_tries += 1
-        return [success]
+        return success
 
     def _try_get(self, local_path, remote_path, domain=None, username=None, ports=[22]):
         """Tries three times to download file from remote_path to local_path
