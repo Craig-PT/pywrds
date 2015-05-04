@@ -33,6 +33,25 @@ class BaseQuery(object):
         # self._local_path, self.file_name
         return True
 
+    def _write_results2remote(self, session):
+        """
+
+        :param filename:
+        :return:
+        """
+        table_name = 'out.crsp_rets'
+        write_remote_query = """
+        proc export data = {0}
+            outfile = "~/{1}"
+            dbms = tab
+            replace;
+            putnames = yes;
+        run;
+        """.format(table_name, self.out_filename)
+
+        query = BaseQuery(write_remote_query, self.trunk + '_temp.sas')
+
+        return session.run_query(query)
     @staticmethod
     def get_nobs(session, log_filename, delimiter=None):
         """When creating a table with sql, the n obs is in this format:
