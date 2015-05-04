@@ -474,22 +474,7 @@ class WrdsSession(object):
         exit_status = self._handle_sas_failure(exit_status, outfile, log_file)
 
         if exit_status in [0, 1]:
-            remote_files = self._try_listdir('.')
-            file_list = remote_files.keys()
-            if outfile not in file_list:
-                print('exit_status in [0, 1] suggests SAS succeeded, but the '
-                      'desired output_file %s is not present in the file '
-                      'list:', outfile)
-                print(file_list)
-
-            else:
-                remote_size = self._wait_for_sas_file_completion(outfile)
-                [get_success, dt] = self._retrieve_file(outfile, remote_size)
-                local_size \
-                    = wrds_util.wait_for_retrieve_completion(outfile, get_success)
-                compare_success = \
-                    self._compare_local_to_remote(outfile, remote_size,
-                                                  local_size)
+            self.get_remote_file(outfile)
 
         got_log = self._get_log_file(log_file, sas_file)
         checkfile = os.path.join(self.download_path, outfile)
@@ -499,6 +484,31 @@ class WrdsSession(object):
 
     def _rename_after_download(self):
         return NotImplementedError
+    def get_remote_file(self, file_name):
+        """Downloads remote file to local dir. Checks file size between local
+        and remote.
+
+        :param file_name:
+        :return:
+        """
+        remote_files = self._try_listdir('.')
+        file_list = remote_files.keys()
+        if file_name not in file_list:
+            print('exit_status in [0, 1] suggests SAS succeeded, but the '
+                  'desired output_file %s is not present in the file '
+                  'list:', file_name)
+            print(file_list)
+            return False
+
+        else:
+            remote_size = self._wait_for_sas_file_completion(file_name)
+            [get_success, dt] = self._retrieve_file(file_name, remote_size)
+            local_size \
+                = wrds_util.wait_for_retrieve_completion(file_name, get_success)
+            status = \
+                self._compare_local_to_remote(file_name, remote_size,
+                                              local_size)
+        return status
 
     def wrds_loop(self, dataset, min_date=0, recombine=1):
         """Executes get_wrds(database_name,...) over all years and months for
