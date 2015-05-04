@@ -1,5 +1,6 @@
 __author__ = 'cpt'
 import os
+import time
 
 
 class BaseQuery(object):
@@ -27,10 +28,15 @@ class BaseQuery(object):
         self._local_path = local_path
         return
 
-    def _remove_from_local(self):
+    def _remove_from_local(self, file_path):
         """Remove the file from the local path.
         """
-        # self._local_path, self.file_name
+        try:
+            os.remove(file_path)
+        except IOError:
+            print('There was an error opening the file.')
+            return
+        # self._local_path, self.file_name: os.remove()
         return True
 
     def _write_results2remote(self, session):
@@ -52,6 +58,28 @@ class BaseQuery(object):
         query = BaseQuery(write_remote_query, self.trunk + '_temp.sas')
 
         return session.run_query(query)
+
+    def write_results2local(self, session):
+        """
+
+        :param session:
+        :return:
+        """
+        tic = time.time()
+        status = self._write_results2remote(session)
+
+        outfile = self.out_filename
+
+        # Download to local.
+        session.get_remote_file(outfile)
+
+        check_file = os.path.join(session.download_path, outfile)
+        if os.path.exists(check_file):
+            return [1, time.time()-tic]
+        return [0, time.time()-tic]
+
+
+
     @staticmethod
     def get_nobs(session, log_filename, delimiter=None):
         """When creating a table with sql, the n obs is in this format:
