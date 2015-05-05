@@ -12,6 +12,8 @@ import paramiko
 from _wrds_db_descriptors import WRDS_DOMAIN, _GET_ALL, FIRST_DATES, \
     FIRST_DATE_GUESSES, AUTOEXEC_TEXT, WRDS_USER_QUOTA
 
+from raw_queries import BaseQuery
+
 from pywrds import sshlib
 from pywrds import utility as wrds_util
 from . import sas_query
@@ -464,7 +466,7 @@ class WrdsSession(object):
             sas_query.wrds_sas_script(self.download_path, dataset, Y, M, D, R)
         log_file = re.sub('\.sas$', '.log', sas_file)
 
-        # Legacy: define trunk of export .sas scripts, as remove any files
+        # Legacy: define    trunk of export .sas scripts, as remove any files
         # with this trunk in the remote home dir.
         trunk = 'wrds_export'
         local_file = os.path.join(self.download_path, sas_file)
@@ -482,8 +484,6 @@ class WrdsSession(object):
             return [1, time.time()-tic]
         return [0, time.time()-tic]
 
-    def _rename_after_download(self):
-        return NotImplementedError
     def get_remote_file(self, file_name):
         """Downloads remote file to local dir. Checks file size between local
         and remote.
@@ -509,6 +509,41 @@ class WrdsSession(object):
                 self._compare_local_to_remote(file_name, remote_size,
                                               local_size)
         return status
+
+    def run_query(self, query):
+        """Sends query to WRDS server.
+
+        :param query:
+        :return:
+        """
+        tic = time.time()
+        assert isinstance(query, BaseQuery), "Query must be child of BaseQuery."
+
+        # Write query to a temp dir under the local download path.
+        file_dir = os.path.join(self.download_path, 'temp/')
+        query._write2local(file_dir)
+
+        # Write local file to remote
+        local_file_path = os.path.join(query._local_path, query.file_name)
+        self._put_sas_file(query.out_filename, query.file_name,
+                           local_file_path, query.trunk)
+
+        # 1. Run the remote query
+        exit_status = self._sas_step(query.file_name, query.out_filename)
+
+        exit_status = self._handle_sas_failure(exit_status, query.out_filename,
+                                               query.log_file)
+
+        # Delete the local sas file.
+        query._remove_from_local(os.path.join(self.download_path, 'temp/',
+                                              query.file_name))
+
+        # Check if file ran successfully and get remote out file.
+        # TODO: Handle errors from running query.
+
+        if exit_status == 0:
+            return [1, time.time()-tic]
+        return [0, time.time()-tic]
 
     def wrds_loop(self, dataset, min_date=0, recombine=1):
         """Executes get_wrds(database_name,...) over all years and months for
@@ -861,23 +896,24 @@ class WrdsSession(object):
             os.remove(saspath)
         return [success]
 
-    def _try_put(self, local_path, remote_path, domain=None, username=None, ports=[22]):
+    def _try_put(self, local_file_path, remote_path, domain=None,
+                 username=None, ports=[22]):
         """Transfers file from local_path to remote_path using the sftp client.
 
         TODO: Reinitiating the ssh connection if needbe.
 
-        :param local_path:
+        :param local_file_path:
         :param remote_path:
         :param domain:
         :param username:
         :param ports:
         :return success:
         """
-        local_stat = os.stat(local_path)
+        local_stat = os.stat(local_file_path)
         [success, n_tries, max_tries] = [0, 0, 3]
         while not success and n_tries < max_tries:
             try:
-                remote_attrs = self.sftp.put(local_path, remote_path)
+                remote_attrs = self.sftp.put(local_file_path, remote_path)
                 # Check file transferred is same as local version
                 if remote_attrs.st_size == local_stat.st_size:
                     success = 1
