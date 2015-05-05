@@ -92,6 +92,16 @@ class BaseQuery(object):
         return pd.DataFrame.from_csv(self.out_filename, sep='\t',
                                      index_col=False)
 
+    def run_query(self, session, query):
+        """
+
+        :param query:
+        :return:
+        """
+        status, elapsed_time = session.run_query(query)
+        n_obs = query.get_nobs(session, query.log_file)
+        return status, elapsed_time, n_obs
+
     @staticmethod
     def get_nobs(session, log_filename, delimiter=None):
         """When creating a table with sql, the n obs is in this format:
