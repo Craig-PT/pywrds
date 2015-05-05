@@ -1,6 +1,7 @@
 __author__ = 'cpt'
 import os
 import time
+import pandas as pd
 
 
 class BaseQuery(object):
@@ -78,7 +79,18 @@ class BaseQuery(object):
             return [1, time.time()-tic]
         return [0, time.time()-tic]
 
+    def return_dataframe(self, session):
+        """
 
+        :param session:
+        :return:
+        """
+        # TODO: 1. Check query has been written to the local directory
+        #   a. if not, run write_results2local()
+
+        # 2. Return as pandas DataFrame
+        return pd.DataFrame.from_csv(self.out_filename, sep='\t',
+                                     index_col=False)
 
     @staticmethod
     def get_nobs(session, log_filename, delimiter=None):
