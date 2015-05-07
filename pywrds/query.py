@@ -126,7 +126,15 @@ class BaseQuery(object):
 
         [stdin, stdout, stderr] = self.session.ssh.exec_command(cmd)
         n_obs_raw = (stdout.readlines())
-        return n_obs_raw[0].strip()
+        try:
+            return n_obs_raw[0].strip()
+        except IndexError:
+            # Case where nothing found in log file so accessing [0] returns
+            # index error. Can be that observations created, just not logged
+            # in format expected, happens with crspmerge for example.
+            # TODO: Try to query directly the library with sql as opposed to
+            # reading log file.
+            return None
 
     def check_duplicates(self):
         return NotImplementedError
