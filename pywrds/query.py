@@ -8,12 +8,16 @@ import pandas as pd
 class BaseQuery(object):
     """Container class for a sas query and its filename.
     """
-    def __init__(self, wrds_session, query, query_name):
+    def __init__(self, wrds_session, query, query_name, out_table_name):
         # TODO: Check user vbl of user defined class without importing it.
         self.session = wrds_session
         self.query = query
         self.file_name = query_name
         self._local_path = ''
+
+        # Location of final result table of query.
+        self.out_table_name = out_table_name
+
         # Set the output of the query to be a .tsv file and store the file
         # trunk.
         self.trunk = query_name.split('.')[0]
@@ -43,14 +47,17 @@ class BaseQuery(object):
         # self._local_path, self.file_name: os.remove()
         return True
 
-    def _write_results2remote(self):
+    def _write_results2remote(self, table_name=None):
         """
 
         :param filename:
         :return:
         """
-        table_name = 'out.crsp_rets'
-        write_remote_query = """
+        # The library and table name for the results of the query.
+        if not table_name:
+            table_name = self.out_table_name
+
+        query = """
         proc export data = {0}
             outfile = "~/{1}"
             dbms = tab
@@ -59,7 +66,8 @@ class BaseQuery(object):
         run;
         """.format(table_name, self.out_filename)
 
-        query = BaseQuery(write_remote_query, self.trunk + '_temp.sas')
+        query = BaseQuery(self.session, query, self.trunk + '_temp.sas',
+                          self.out_table_name)
 
         return self.session.run_query(query)
 
@@ -70,14 +78,12 @@ class BaseQuery(object):
         :return:
         """
         tic = time.time()
-        # status = self._write_results2remote(session)
-
-        outfile = self.out_filename
+        status = self._write_results2remote()
 
         # Download to local.
-        self.session.get_remote_file(outfile)
+        self.session.get_remote_file(self.out_filename)
 
-        check_file = os.path.join(self.session.download_path, outfile)
+        check_file = os.path.join(self.session.download_path, self.out_filename)
         if os.path.exists(check_file):
             return [1, time.time()-tic]
         return [0, time.time()-tic]
@@ -92,17 +98,18 @@ class BaseQuery(object):
         #   a. if not, run write_results2local()
 
         # 2. Return as pandas DataFrame
-        return pd.DataFrame.from_csv(self.out_filename, sep='\t',
+        file_path = os.path.join(self.session.download_path, self.out_filename)
+        return pd.DataFrame.from_csv(file_path, sep='\t',
                                      index_col=False)
 
     def run_query(self, query):
         """
 
-        :param query:
+        :param query (BaseQuery):
         :return:
         """
         status, elapsed_time = self.session.run_query(query)
-        n_obs = query.get_nobs(self.session, query.log_file)
+        n_obs = query.get_nobs(query.log_file)
         return status, elapsed_time, n_obs
 
     def get_nobs(self, log_filename, delimiter=None):
