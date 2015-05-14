@@ -10,6 +10,13 @@ import datetime
 import os
 import time
 
+# Required for rolling_mean
+from pandas import Series, DataFrame
+import pandas as pd
+from datetime import datetime, timedelta
+import numpy as np
+from dateutil.relativedelta import relativedelta
+
 
 def rows_per_file_adjusted(dataset):
     """ Chooses a number of rows to query to ensure that the files produced
@@ -412,5 +419,76 @@ def recombine_files(fname, dname=None, suppress=0):
             os.remove(os.path.join(dname, fname1))
     return combined_files
 
+
+def rolling_mean(data, window, min_periods=1, center=False):
+    """ Function that computes a rolling mean
+    Reference:
+        http://stackoverflow.com/questions/15771472/pandas-rolling-mean-by-time-interval
+
+    Parameters
+    ----------
+    data : DataFrame or Series
+           If a DataFrame is passed, the rolling_mean is computed for all columns.
+    window : int, string, Timedelta or Relativedelta
+             int - number of observations used for calculating the statistic,
+                       as defined by the function pd.rolling_mean()
+             string - must be a frequency string, e.g. '90S'. This is
+                      internally converted into a DateOffset object, and then
+                      Timedelta representing the window size.
+             Timedelta / Relativedelta - Can directly pass a timedeltas.
+    min_periods : int
+                  Minimum number of observations in window required to have a value.
+    center : bool
+             Point around which to 'center' the slicing.
+
+    Returns
+    -------
+    Series or DataFrame, if more than one column
+    """
+    def f(x, time_increment):
+        """Function to apply that actually computes the rolling mean
+        :param x:
+        :return:
+        """
+        if not center:
+            # adding a microsecond because when slicing with labels start
+            # and endpoint are inclusive
+            start_date = x - time_increment + timedelta(0, 0, 1)
+            end_date = x
+        else:
+            start_date = x - time_increment/2 + timedelta(0, 0, 1)
+            end_date = x - time_increment/2
+        # Select the date index from the
+        dslice = col[start_date:end_date]
+
+        if dslice.size < min_periods:
+            return np.nan
+        else:
+            return dslice.mean()
+
+    data = DataFrame(data.copy())
+    dfout = DataFrame()
+    if isinstance(window, int):
+        dfout = pd.rolling_mean(data, window, min_periods=min_periods, center=center)
+
+    elif isinstance(window, basestring):
+        time_delta = pd.datetools.to_offset(window).delta
+        idx = Series(data.index.to_pydatetime(), index=data.index)
+        for colname, col in data.iteritems():
+            result = idx.apply(lambda x: f(x, time_delta))
+            result.name = colname
+            dfout = dfout.join(result, how='outer')
+
+    elif isinstance(window, (timedelta, relativedelta)):
+        time_delta = window
+        idx = Series(data.index.to_pydatetime(), index=data.index)
+        for colname, col in data.iteritems():
+            result = idx.apply(lambda x: f(x, time_delta))
+            result.name = colname
+            dfout = dfout.join(result, how='outer')
+
+    if dfout.columns.size == 1:
+        dfout = dfout.ix[:, 0]
+    return dfout
 
 
