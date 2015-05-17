@@ -1,1 +1,10 @@
 *.pyc
+
+# Pycharm files
+.idea*
+
+# Distribution / packaging
+*.egg-info/
+
+# Output folder
+output/
