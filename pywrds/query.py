@@ -100,8 +100,9 @@ class BaseQuery(object):
         # sizes or something, for safety now just brute force write everything
         # if not os.path.exists(file_path):
         self.write_results2local()
-        return pd.DataFrame.from_csv(self.local_results_filepath, sep='\t',
-                                     index_col=False)
+        # TODO: Check file size and chunk??
+        return pd.read_csv(self.local_results_filepath, sep='\t',
+                           index_col=False)
 
     def run_query(self, query):
         """
