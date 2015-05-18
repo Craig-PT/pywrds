@@ -23,6 +23,12 @@ class BaseQuery(object):
         self.trunk = query_name.split('.')[0]
         self.out_filename = self.trunk + '.tsv'
         self.log_file = self.trunk + '.log'
+        self._local_results_filepath = os.path.join(self.session.download_path,
+                                                    self.out_filename)
+
+    @property
+    def local_results_filepath(self):
+        return self._local_results_filepath
 
     def _write2local(self, local_path):
         """Write query to local_path with self.file_name and store its location.
@@ -73,8 +79,7 @@ class BaseQuery(object):
 
     def write_results2local(self):
         """
-
-        :param session:
+        :param :
         :return:
         """
         tic = time.time()
@@ -83,23 +88,19 @@ class BaseQuery(object):
         # Download to local.
         self.session.get_remote_file(self.out_filename)
 
-        check_file = os.path.join(self.session.download_path, self.out_filename)
-        if os.path.exists(check_file):
+        if os.path.exists(self.local_results_filepath):
             return [1, time.time()-tic]
         return [0, time.time()-tic]
 
     def return_dataframe(self):
         """
-
-        :param session:
         :return:
         """
-        # TODO: 1. Check query has been written to the local directory
-        #   a. if not, run write_results2local()
-
-        # 2. Return as pandas DataFrame
-        file_path = os.path.join(self.session.download_path, self.out_filename)
-        return pd.DataFrame.from_csv(file_path, sep='\t',
+        # Might want to avoid writing the results all the time by checking
+        # sizes or something, for safety now just brute force write everything
+        # if not os.path.exists(file_path):
+        self.write_results2local()
+        return pd.DataFrame.from_csv(self.local_results_filepath, sep='\t',
                                      index_col=False)
 
     def run_query(self, query):
