@@ -1,2 +1,13 @@
-*.pyc, .DS_Store
+# Os x files.
+.DS_Store
+
+# Pycharm files
+*.pyc
+.idea*
+
+# Distribution / packaging
+*.egg-info/
+
+# Output folder
+output/
 

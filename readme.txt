@@ -226,5 +226,7 @@ VI) Installing Python and pywrds Dependencies
 		sudo pip install paramiko
 
 
+VII) To install as a development package:
 
+    python setup.py develop
 
