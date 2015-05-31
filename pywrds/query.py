@@ -10,6 +10,7 @@ class BaseQuery(object):
     """
     def __init__(self, wrds_session, query, query_name, out_table_name):
         # TODO: Check user vbl of user defined class without importing it.
+        # TODO: Split into library, table_name, query_name.
         self.session = wrds_session
         self.query = query
         self.file_name = query_name
@@ -21,8 +22,6 @@ class BaseQuery(object):
         # Set the output of the query to be a .tsv file and store the file
         # trunk.
         self.trunk = query_name.split('.')[0]
-        self.out_filename = self.trunk + '.tsv'
-        self.log_file = self.trunk + '.log'
         self._local_results_filepath = os.path.join(self.session.download_path,
                                                     self.out_filename)
 
@@ -30,6 +29,17 @@ class BaseQuery(object):
     def local_results_filepath(self):
         return self._local_results_filepath
 
+    @property
+    def log_file(self):
+        return self.trunk + '.log'
+
+    @property
+    def list_file(self):
+        return self.trunk + '.lst'
+
+    @property
+    def out_filename(self):
+        return self.trunk + '.tsv'
     def _write2local(self, local_path):
         """Write query to local_path with self.file_name and store its location.
         """
@@ -37,6 +47,7 @@ class BaseQuery(object):
         with open(os.path.join(local_path, self.file_name), 'wb') as fd:
             fd.write(self.query)
 
+        # TODO: Prob better to set this in the inititalisation of the query.
         # Set local path, as removing file will be conditional on file being
         # written
         self._local_path = local_path
