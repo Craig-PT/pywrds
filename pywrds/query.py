@@ -40,6 +40,24 @@ class BaseQuery(object):
     @property
     def out_filename(self):
         return self.trunk + '.tsv'
+
+    @property
+    def remote_logfile(self):
+        """Checks if 'log_file' on remote server and returns it as text.
+        :return:
+        """
+        # TODO: 1. Check log file on remote - if not return message.
+        return self.session._get_remote_file(self.log_file)
+
+    @property
+    def remote_list_file(self):
+        """SAS output written to a list file (.lst)
+        :return:
+        """
+        # TODO: Check list file on remote - if not return message.
+        # self.is_file_in_remote_home_dir(self.list_file)
+        return self.session._get_remote_file(self.list_file)
+
     def _write2local(self, local_path):
         """Write query to local_path with self.file_name and store its location.
         """

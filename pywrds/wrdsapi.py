@@ -896,6 +896,14 @@ class WrdsSession(object):
             os.remove(saspath)
         return [success]
 
+    def _get_remote_file(self, filename):
+        """Returns contents of file on remote server. Useful for log files etc.
+        :param filename:
+        :return :
+        """
+        data = self.sftp.file(filename, "r", -1)
+        return data.read()
+
     def _try_put(self, local_file_path, remote_path, domain=None,
                  username=None, ports=[22]):
         """Transfers file from local_path to remote_path using the sftp client.
