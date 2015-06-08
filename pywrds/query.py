@@ -11,6 +11,8 @@ class BaseQuery(object):
     def __init__(self, wrds_session, query, query_name, out_table_name):
         # TODO: Check user vbl of user defined class without importing it.
         # TODO: Split into library, table_name, query_name.
+        # TODO: Add possibility for multiple output tables / way to access them
+        # Use simple list: ['table_name_1', 'table_name_2']
         self.session = wrds_session
         self.query = query
         self.file_name = query_name
@@ -57,6 +59,12 @@ class BaseQuery(object):
         # TODO: Check list file on remote - if not return message.
         # self.is_file_in_remote_home_dir(self.list_file)
         return self.session._get_remote_file(self.list_file)
+
+    def run(self):
+        """Wrapper method to run own query of class BaseQuery()
+        :return:
+        """
+        return NotImplementedError
 
     def _write2local(self, local_path):
         """Write query to local_path with self.file_name and store its location.

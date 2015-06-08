@@ -27,6 +27,25 @@ class UtilityTest(unittest.TestCase):
 
         vals = np.arange(len(idx)).astype(float)
         self.s = Series(vals, index=idx)
+        self.df = DataFrame({'a': vals, 'b':2*vals}, index=idx)
+
+    def test_rolling_apply(self):
+        """Test with window based on dates.
+        """
+
+        # Test different frequencies
+        # 1. Daily.
+        func = lambda x: x.mean()
+        window = relativedelta(days=3)
+        res = wrds_util.rolling_apply(self.s, window=window,
+                                      func=func)
+        exp_res = wrds_util.rolling_mean(self.s, window=window)
+        # TODO: Check res equal ... how to do for Series?
+
+        func = lambda x: x[x == 0.0].count()
+        res = wrds_util.rolling_apply(self.s, window=window,
+                                      func=func)
+        self.assertTrue(res.values.sum() == 4, "Should only have 4 zero counts")
 
     def test_rolling_mean(self):
         """Test with window based on dates.
@@ -34,8 +53,9 @@ class UtilityTest(unittest.TestCase):
 
         # Test different frequencies
         # 1. Daily.
-        rm = wrds_util.rolling_mean(self.s, window=relativedelta(days=3))
-        rm = wrds_util.rolling_mean(self.s, window='2D')
+        window = relativedelta(days=3)
+        rm = pd.rolling_mean(self.s, window='3D')
+        rm = wrds_util.rolling_mean(self.s, window=window)
         # TODO: Some check ...
 
 if __name__ == "__main__":

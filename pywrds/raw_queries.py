@@ -1,26 +1,6 @@
 __author__ = 'cpt'
 from query import BaseQuery
 
-def eg_query_crsp(session):
-    query = """
-    /* Year Range */
-    %LET FIRST = 1965;
-    %LET LAST = 1967;
-    %LET crsp_rets = a.PERMNO, a.DATE, b.SICCD, b.EXCHCD, b.SHRCD, a.RET;
-        proc sql;
-        create table out.crsp_rets as
-            select &crsp_rets
-            from crsp.msf as a
-            inner join crsp.mseexchdates as b
-            on a.PERMNO = b.PERMNO and a.DATE between b.NAMEDT and b.NAMEENDT
-            and year(date) between &FIRST and &LAST
-            where SICCD not between 6000 and 6999 and EXCHCD in (1,2,3) and SHRCD in (10,11)
-            order by a.PERMNO, a.DATE;
-            ;
-        quit;
-        """
-    return BaseQuery(session, query, 'test_crsp.sas')
-
 
 def eg_nobs_crsp(session):
     query = """
