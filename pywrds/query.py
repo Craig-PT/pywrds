@@ -8,7 +8,8 @@ import pandas as pd
 class BaseQuery(object):
     """Container class for a sas query and its filename.
     """
-    def __init__(self, wrds_session, query, query_name, out_table_name):
+    def __init__(self, wrds_session, query, query_name, out_table_name,
+                 write_output_table2log=False):
         # TODO: Check user vbl of user defined class without importing it.
         # TODO: Split into library, table_name, query_name.
         # TODO: Add possibility for multiple output tables / way to access them
@@ -26,6 +27,10 @@ class BaseQuery(object):
         self.trunk = query_name.split('.')[0]
         self._local_results_filepath = os.path.join(self.session.download_path,
                                                     self.out_filename)
+
+        if write_output_table2log:
+            self.query += 'proc print data={0}(obs=30);\n'.format(
+                self.out_table_name)
 
     @property
     def local_results_filepath(self):
