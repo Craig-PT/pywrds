@@ -95,7 +95,7 @@ class BaseQuery(object):
         # self._local_path, self.file_name: os.remove()
         return True
 
-    def _write_results2remote(self, table_name=None):
+    def _write_results2remote(self, libname=None, table_name=None):
         """
 
         :param filename:
@@ -105,7 +105,13 @@ class BaseQuery(object):
         if not table_name:
             table_name = self.out_table_name
 
-        query = """
+        # Allow for library to not be in default output directory.
+        query = ''
+        if libname:
+            query = "libname temp '{0}';".format(libname)
+
+        query += """
+
         proc export data = {0}
             outfile = "~/{1}"
             dbms = tab
@@ -119,13 +125,13 @@ class BaseQuery(object):
 
         return self.session.run_query(query)
 
-    def write_results2local(self):
+    def write_results2local(self, libname=None):
         """
         :param :
         :return:
         """
         tic = time.time()
-        status = self._write_results2remote()
+        status = self._write_results2remote(libname=libname)
 
         # Download to local.
         self.session.get_remote_file(self.out_filename)
