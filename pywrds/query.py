@@ -9,15 +9,20 @@ class BaseQuery(object):
     """Container class for a sas query and its filename.
     """
     def __init__(self, wrds_session, query, query_name, out_table_name,
-                 write_output_table2log=False):
+                 libname=None, write_output_table2log=False):
         # TODO: Check user vbl of user defined class without importing it.
         # TODO: Split into library, table_name, query_name.
         # TODO: Add possibility for multiple output tables / way to access them
         # Use simple list: ['table_name_1', 'table_name_2']
         self.session = wrds_session
-        self.query = query
         self.file_name = query_name
         self._local_path = ''
+
+        # Prepend temporary libname to query if passed.
+        self.query = ''
+        if libname:
+            self.query += "libname temp '{0}'; ".format(libname)
+        self.query += query
 
         # Location of final result table of query.
         self.out_table_name = out_table_name
