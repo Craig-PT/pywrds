@@ -70,12 +70,6 @@ class BaseQuery(object):
         # self.is_file_in_remote_home_dir(self.list_file)
         return self.session._get_remote_file(self.list_file)
 
-    def run(self):
-        """Wrapper method to run own query of class BaseQuery()
-        :return:
-        """
-        return NotImplementedError
-
     def _write2local(self, local_path):
         """Write query to local_path with self.file_name and store its location.
         """
@@ -157,14 +151,17 @@ class BaseQuery(object):
         return pd.read_csv(self.local_results_filepath, sep='\t',
                            index_col=False)
 
-    def run_query(self, query):
+    def run_query(self, query=None):
         """
-
         :param query (BaseQuery):
         :return:
         """
-        status, elapsed_time = self.session.run_query(query)
-        n_obs = query.get_nobs(query.log_file)
+        if query:
+            status, elapsed_time = self.session.run_query(query)
+            n_obs = query.get_nobs(query.log_file)
+        else:
+            status, elapsed_time = self.session.run_query(self)
+            n_obs = self.get_nobs(self.log_file)
         return status, elapsed_time, n_obs
 
     def get_nobs(self, log_filename, delimiter=None):
