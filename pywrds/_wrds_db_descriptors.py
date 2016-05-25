@@ -1,7 +1,7 @@
 # Various information about WRDS data base structure.
 
 
-WRDS_DOMAIN = 'wrds.wharton.upenn.edu'
+WRDS_DOMAIN = 'wrds-cloud.wharton.upenn.edu'
 
 # datasets for which the default is to download the entire data sets at once
 _GET_ALL = ['crsp.stocknames', 'comp.company', 'comp.g_company']

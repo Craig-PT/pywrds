@@ -714,7 +714,7 @@ class WrdsSession(object):
         :param outfile:
         :return exit_status:
         """
-        sas_command = ('sas -noterminal ' + sas_file)
+        sas_command = ('qsas ' + sas_file)
         [stdin, stdout, stderr] = self.ssh.exec_command(sas_command)
         [exit_status, exit_status2, waited, maxwait] = [-1, -1, 0, 1200]
         while exit_status == -1 and waited < maxwait:
